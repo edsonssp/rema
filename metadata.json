@@ -1,0 +1,6 @@
+{
+  "name": "Amarenapassos",
+  "description": "Aplicativo completo para a sorveteria Amarena, incluindo cardápio interativo (sorvetes, picolés, açaí personalizado), painel administrativo para gerenciamento de produtos e integração com pagamentos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
