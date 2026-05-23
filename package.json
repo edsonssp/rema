@@ -7,7 +7,8 @@
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "frontend": "vite"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
@@ -32,7 +33,7 @@
     "tailwind-merge": "^2.5.2"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.9.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
