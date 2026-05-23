@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { getToken } from 'firebase/messaging';
-import { messaging } from './lib/firebase';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
+//import React, { useState, useEffect } from 'react';
+//import { getToken } from 'firebase/messaging';
+//import { messaging } from './lib/firebase';
+//import { motion, AnimatePresence } from 'motion/react';
+//import { 
   IceCream, 
   X, 
   ShoppingBag, 
