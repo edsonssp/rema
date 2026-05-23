@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ribei"
 include(":app")
+include(":app")
