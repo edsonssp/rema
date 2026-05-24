@@ -1,8 +1,8 @@
-//import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 //import { getToken } from 'firebase/messaging';
 //import { messaging } from './lib/firebase';
-//import { motion, AnimatePresence } from 'motion/react';
-//import { 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
   IceCream, 
   X, 
   ShoppingBag, 
@@ -301,20 +301,11 @@ export default function App() {
   const [cart, setCart] = useState<{ name: string, price: number, quantity: number }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>(null);
   const [pixCopied, setPixCopied] = useState(false);
+  const [promoTitle, setPromoTitle] = useState('');
+  const [promoBody, setPromoBody] = useState('');
 
-  useEffect(() => {
-    const registerToken = async () => {
-        try {
-            const token = await getToken(messaging, { vapidKey: 'BM-X5aQ-p0Q-l0x9mS9E5S_e4B0jKx6kH-F-H9mS1Q8-D-H0r_hIu-X74K-iU9O-B3C5uQ8W8G7vL2n7Qy8' });
-            if (token) {
-                await axios.post('/api/push-token', { token });
-            }
-        } catch (error) {
-            console.error('Error registering for push notifications:', error);
-        }
-    };
-    registerToken();
-  }, []);
+  // Removed Firebase Push notifications register block which references 'getToken' and 'messaging' that are missing.
+
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
 
