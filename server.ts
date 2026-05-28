@@ -22,10 +22,21 @@ const JWT_SECRET = process.env.JWT_SECRET || "amarena_fallback_secret_2025";
 const ADMIN_USER = process.env.ADMIN_USERNAME || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || "admin123";
 
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.applicationDefault()
-});
+// --- Lazy Initialization of Firebase Admin ---
+let adminInitialized = false;
+
+function initFirebaseAdmin() {
+  if (!adminInitialized) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault()
+      });
+      adminInitialized = true;
+    } catch (err) {
+      console.warn("Firebase Admin failed to initialize. Push notifications might not work.", err);
+    }
+  }
+}
 
 // --- Lazy Initialization of MongoDB ---
 let dbClient: MongoClient | null = null;
@@ -183,6 +194,7 @@ async function startServer() {
 
   app.post("/api/admin/push-notification", authenticateAdmin, async (req, res) => {
     try {
+      initFirebaseAdmin();
       const db = await getDb();
       const { title, body } = req.body;
       

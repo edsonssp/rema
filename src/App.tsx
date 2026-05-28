@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-//import { getToken } from 'firebase/messaging';
-//import { messaging } from './lib/firebase';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
+import { getToken } from 'firebase/messaging';
+import { messaging } from './lib/firebase';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
   IceCream, 
   X, 
   ShoppingBag, 
@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   Package,
   History,
+  RefreshCcw,
   LogOut,
   ChevronLeft,
   MapPin,
@@ -84,22 +85,22 @@ const PopsicleBittenIcon = ({ size = 24 }: { size?: number }) => (
 
 // --- Components ---
 
-const Logo = ({ className = "" }: { className?: string }) => (
-  <div className={`flex items-center w-full gap-4 ${className} group cursor-default select-none`}>
-    <div className="w-28 h-28 flex-shrink-0 bg-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.2)] overflow-hidden border-[4px] border-white transform -rotate-6 transition-all group-hover:rotate-0 group-hover:scale-105 z-10">
-       <div className="relative w-full h-full bg-white flex items-center justify-center">
+const Logo = ({ className = "" }: { className?: string; light?: boolean }) => (
+  <div className={`flex items-center gap-4 ${className} group cursor-default select-none`}>
+    <div className="w-20 h-20 md:w-28 md:h-28 flex-shrink-0 bg-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.2)] overflow-hidden border-[4px] border-white transform -rotate-6 transition-all group-hover:rotate-0 group-hover:scale-105 z-10">
+       <div className="relative w-full h-full flex items-center justify-center">
           {/* Official Brand Logo Image */}
           <img 
-            src="data:image/jpeg;base64,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" 
+            src="/Logo.png"
             alt="Amarena Official Logo" 
-            className="w-full h-full object-contain scale-[1.9] -translate-y-0.5"
+            className="w-full h-full object-contain p-2"
           />
           {/* Clearer glossy overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 pointer-events-none" />
        </div>
     </div>
-    <div className="flex-1 text-center pr-[128px] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-       <h1 className="font-brand text-5xl leading-none tracking-tight text-white mb-1">Amarena</h1>
+    <div className="flex-1 text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+       <h1 className="font-brand text-4xl md:text-5xl leading-none tracking-tight text-white mb-1">Amarena</h1>
        <div className="flex items-center justify-center gap-3">
           <div className="h-[1px] w-4 bg-white/30" />
           <p className="text-amarena-green font-black text-[10px] tracking-[0.4em] uppercase">SORVETES</p>
@@ -110,7 +111,126 @@ const Logo = ({ className = "" }: { className?: string }) => (
   </div>
 );
 
-const OrderHistory = ({ clientPhone, setCurrentScreen, setCart }: { clientPhone: string, setCurrentScreen: (screen: string) => void, setCart: (items: { name: string; price: number; quantity: number }[]) => void }) => {
+/* REMOVED MESSY BASE64 */
+const LogoOldPart1 = () => null;
+/*
+            src="data:image/jpeg;base64,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|
+            alt="Amarena Official Logo" 
+            className="w-full h-full object-contain"
+          />
+  </div>
+);
+
+*/ const LogoOld = null;
+
+// Modern Ticket Visual Component
+const ModernTicket = ({ order, onDismiss }: { order: Order; onDismiss: () => void }) => (
+  <motion.div 
+    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto py-10"
+    onClick={onDismiss}
+  >
+    <div 
+      className="bg-white w-full max-w-sm rounded-[40px] overflow-hidden shadow-2xl relative"
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Decorative Ticket Top */}
+      <div className="bg-amarena-red h-24 flex items-center justify-center relative">
+        <button 
+          onClick={onDismiss}
+          className="absolute top-4 left-4 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-all flex items-center gap-1 pr-3"
+        >
+          <ChevronLeft size={18} />
+          <span className="text-[10px] uppercase font-black tracking-widest">Voltar</span>
+        </button>
+
+        <div className="absolute -bottom-4 left-0 right-0 flex justify-around px-4">
+           {Array.from({ length: 8 }).map((_, i) => (
+             <div key={i} className="w-8 h-8 bg-white rounded-full -mb-4 shadow-inner" />
+           ))}
+        </div>
+        <div className="text-white text-center">
+           <h3 className="font-brand text-3xl">Amarena</h3>
+           <p className="text-[10px] tracking-[0.3em] font-black opacity-80 uppercase">Recibo Digital</p>
+        </div>
+      </div>
+
+      <div className="p-8 pt-10 text-stone-800">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest">Senha do Pedido</p>
+            <h4 className="text-4xl font-brand text-amarena-purple">#{order.id.slice(-4).toUpperCase()}</h4>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest">Data</p>
+            <p className="text-sm font-bold">{new Date(order.createdAt).toLocaleDateString('pt-BR')}</p>
+            <p className="text-[10px] font-medium text-stone-400">{new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4 mb-8">
+          <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest border-b border-stone-100 pb-2">Itens</p>
+          {order.items.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 flex items-center justify-center bg-stone-100 rounded-lg text-xs font-bold text-stone-600">{item.quantity}x</span>
+                <span className="font-bold text-sm text-stone-700">{item.name}</span>
+              </div>
+              <span className="font-bold text-sm text-stone-900 text-right">R$ {(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-stone-50 rounded-3xl p-4 space-y-2 mb-8">
+          <div className="flex justify-between text-xs font-bold text-stone-400">
+            <span>Subtotal</span>
+            <span>R$ {(order.total - (order.deliveryFee || 0)).toFixed(2)}</span>
+          </div>
+          {order.deliveryFee && order.deliveryFee > 0 && (
+            <div className="flex justify-between text-xs font-bold text-stone-400">
+              <span>Entrega</span>
+              <span>R$ {order.deliveryFee.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-xl font-brand text-amarena-red pt-2 border-t border-stone-200/50">
+            <span>Total</span>
+            <span>R$ {order.total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-center gap-2 py-4 border-y border-dashed border-stone-200">
+             <QrCode className="text-stone-300" size={32} />
+             <div className="text-left">
+                <p className="text-[9px] font-black text-stone-400 uppercase leading-none">Status Autêntico</p>
+                <p className="text-xs font-bold text-green-500 uppercase">{
+                  order.status === 'pending' ? 'Pedido Recebido' :
+                  order.status === 'preparing' ? 'Em Preparação' :
+                  order.status === 'shipped' ? 'Saiu para Entrega' :
+                  'Pedido Concluído'
+                }</p>
+             </div>
+          </div>
+          
+          <Button onClick={onDismiss} variant="orange" className="w-full rounded-2xl py-4 mt-2">
+            Fechar Ticket
+          </Button>
+        </div>
+      </div>
+      
+      {/* Decorative Bottom Circles */}
+      <div className="absolute -bottom-4 left-0 right-0 flex justify-around px-4">
+         {Array.from({ length: 8 }).map((_, i) => (
+           <div key={i} className="w-8 h-8 bg-stone-900 rounded-full shadow-inner opacity-10" />
+         ))}
+      </div>
+    </div>
+  </motion.div>
+);
+
+const OrderHistory = ({ clientPhone, setCurrentScreen, setCart, setViewingTicket }: { clientPhone: string, setCurrentScreen: (screen: any) => void, setCart: (items: { name: string; price: number; quantity: number }[]) => void, setViewingTicket: (order: Order | null) => void }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -129,54 +249,121 @@ const OrderHistory = ({ clientPhone, setCurrentScreen, setCart }: { clientPhone:
     setCurrentScreen('checkout');
   };
 
+  const getStatusProgress = (status: string) => {
+    switch (status) {
+      case 'pending': return 20;
+      case 'preparing': return 50;
+      case 'shipped': return 85;
+      case 'completed': return 100;
+      default: return 0;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Recebido';
+      case 'preparing': return 'Preparando';
+      case 'shipped': return 'Em Trânsito';
+      case 'completed': return 'Concluído';
+      case 'cancelled': return 'Cancelado';
+      default: return status;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-amarena-orange p-6 text-white flex items-center gap-4 sticky top-0 z-50">
+    <div className="min-h-screen bg-stone-50 pb-20">
+      <div className="bg-amarena-orange p-6 text-white flex items-center gap-4 sticky top-0 z-50 shadow-lg">
         <button onClick={() => setCurrentScreen('home')} className="p-2 hover:bg-white/20 rounded-xl transition-all">
           <ChevronLeft />
         </button>
         <h2 className="text-xl font-bold tracking-tight">Meus Pedidos</h2>
       </div>
       
-      <div className="p-6 space-y-4">
+      <div className="p-4 space-y-6 max-w-lg mx-auto">
         {loadingHistory ? (
-          <p className="text-center text-stone-400 py-10">Carregando seus pedidos...</p>
+          <div className="flex flex-col items-center py-20 gap-4">
+            <div className="w-10 h-10 border-4 border-amarena-orange border-t-transparent rounded-full animate-spin" />
+            <p className="text-stone-400 font-medium">Buscando seus pedidos...</p>
+          </div>
         ) : orders.length === 0 ? (
-          <p className="text-center text-stone-400 py-10">Nenhum pedido encontrado para este telefone.</p>
+          <div className="text-center py-20 bg-white rounded-[40px] shadow-sm border border-stone-100 p-10">
+            <History size={48} className="mx-auto text-stone-200 mb-4" />
+            <p className="text-stone-500 font-bold">Você ainda não fez nenhum pedido.</p>
+            <p className="text-stone-300 text-sm mt-2">Que tal pedir um sorvete agora?</p>
+            <Button onClick={() => setCurrentScreen('home')} className="mt-6 w-full" variant="orange">
+               Ver Cardápio
+            </Button>
+          </div>
         ) : (
           orders.map(order => (
-            <div key={order.id} className="bg-stone-50 rounded-3xl p-6 border border-stone-100">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="font-bold text-stone-800">Pedido #{order.id.slice(-4).toUpperCase()}</p>
-                  <p className="text-xs text-stone-400">{new Date(order.createdAt).toLocaleDateString('pt-BR')}</p>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              key={order.id} 
+              className="bg-white rounded-[32px] overflow-hidden shadow-premium border border-stone-100"
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-black text-stone-800 text-lg uppercase">Senha #{order.id.slice(-4).toUpperCase()}</p>
+                      <span className="text-[10px] bg-stone-100 text-stone-400 px-2 py-0.5 rounded-full font-bold">ID: {order.id.slice(-6)}</span>
+                    </div>
+                    <p className="text-xs text-stone-400 font-medium">{new Date(order.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
+                    order.status === 'preparing' ? 'bg-blue-100 text-blue-600' :
+                    order.status === 'shipped' ? 'bg-purple-100 text-purple-600' :
+                    order.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                  }`}>
+                     {getStatusLabel(order.status)}
+                  </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                  order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
-                  order.status === 'preparing' ? 'bg-blue-100 text-blue-600' :
-                  order.status === 'shipped' ? 'bg-purple-100 text-purple-600' :
-                  order.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                }`}>
-                   {order.status === 'pending' ? 'Pendente' : 
-                    order.status === 'preparing' ? 'Preparando' :
-                    order.status === 'shipped' ? 'Saiu para Entrega' :
-                    order.status === 'cancelled' ? 'Cancelado' : 'Concluído'}
-                </span>
+
+                {/* Status Tracker */}
+                {order.status !== 'cancelled' && (
+                  <div className="mb-8">
+                    <div className="flex justify-between mb-2 px-1">
+                       <span className={`text-[9px] font-bold uppercase tracking-widest ${order.status === 'pending' || order.status === 'preparing' || order.status === 'shipped' || order.status === 'completed' ? 'text-amarena-green' : 'text-stone-300'}`}>Pedido</span>
+                       <span className={`text-[9px] font-bold uppercase tracking-widest ${order.status === 'preparing' || order.status === 'shipped' || order.status === 'completed' ? 'text-amarena-green' : 'text-stone-300'}`}>Preparo</span>
+                       <span className={`text-[9px] font-bold uppercase tracking-widest ${order.status === 'shipped' || order.status === 'completed' ? 'text-amarena-green' : 'text-stone-300'}`}>Entrega</span>
+                       <span className={`text-[9px] font-bold uppercase tracking-widest ${order.status === 'completed' ? 'text-amarena-green' : 'text-stone-300'}`}>Fim</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-stone-100 rounded-full overflow-hidden relative">
+                       <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${getStatusProgress(order.status)}%` }}
+                        className="h-full bg-amarena-green"
+                       />
+                       <div className="absolute top-0 left-0 w-full h-full flex justify-between px-0.5 items-center">
+                          {[0, 1, 2, 3].map(i => (
+                            <div key={i} className={`w-2 h-2 rounded-full border-2 border-stone-100 ${getStatusProgress(order.status) >= (i * 33) ? 'bg-amarena-green' : 'bg-stone-300'}`} />
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-2">
+                  <p className="font-black text-amarena-red text-xl">R$ {order.total.toFixed(2)}</p>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => repeatOrder(order)}
+                      className="text-amarena-green font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 bg-amarena-green/5 px-4 py-2.5 rounded-full hover:bg-amarena-green/10 transition-all"
+                    >
+                      <RefreshCcw size={12} strokeWidth={3} /> Repetir
+                    </button>
+                    <button 
+                      onClick={() => setViewingTicket(order)}
+                      className="text-amarena-orange font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 bg-amarena-orange/5 px-4 py-2.5 rounded-full hover:bg-amarena-orange/10 transition-all"
+                    >
+                      Ver Detalhes <ChevronLeft className="rotate-180" size={12} strokeWidth={3} />
+                    </button>
+                  </div>
+                </div>
               </div>
-              {order.items.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm py-1">
-                  <span className="text-stone-600">{item.quantity}x {item.name}</span>
-                  <span className="font-medium">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="mt-4 pt-4 border-t border-stone-200 flex justify-between font-bold items-center">
-                <span className="text-stone-800">Total</span>
-                <div className="flex items-center gap-4">
-                  <span className="text-amarena-orange">R$ {order.total.toFixed(2)}</span>
-                  <button onClick={() => repeatOrder(order)} className="text-xs bg-amarena-dark-red text-white py-1 px-3 rounded-full hover:bg-amarena-red transition-all">Repetir</button>
-                </div>
-              </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>
@@ -270,6 +457,7 @@ const OrderTicket = ({ order }: { order: Order | null }) => {
 // --- App ---
 
 type AppSettings = {
+  isStoreOpen?: boolean;
   acai?: Record<string, number>;
   milkshake?: Record<string, number>;
   potePersonalizado?: Record<string, number>;
@@ -281,13 +469,17 @@ type AppSettings = {
 };
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'sorvete' | 'picole' | 'potes' | 'acai' | 'promos' | 'milkshake' | 'potePersonalizado' | 'whatsapp' | 'admin' | 'checkout' | 'success'>('home');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'sorvete' | 'picole' | 'potes' | 'acai' | 'promos' | 'milkshake' | 'potePersonalizado' | 'whatsapp' | 'admin' | 'checkout' | 'success' | 'history'>('home');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
+  
+  // Promotion State
+  const [promoTitle, setPromoTitle] = useState('');
+  const [promoBody, setPromoBody] = useState('');
   
   // New States for UX
   const [searchQuery, setSearchQuery] = useState('');
@@ -299,15 +491,36 @@ export default function App() {
 
   // Checkout State
   const [cart, setCart] = useState<{ name: string, price: number, quantity: number }[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>('delivery_payment');
   const [pixCopied, setPixCopied] = useState(false);
-  const [promoTitle, setPromoTitle] = useState('');
-  const [promoBody, setPromoBody] = useState('');
 
-  // Removed Firebase Push notifications register block which references 'getToken' and 'messaging' that are missing.
-
+  useEffect(() => {
+    const registerToken = async () => {
+        // Only ask if we haven't successfully registered or been denied in this session
+        if (localStorage.getItem('push_registered') === 'true') return;
+        
+        try {
+            const token = await getToken(messaging, { vapidKey: 'BM-X5aQ-p0Q-l0x9mS9E5S_e4B0jKx6kH-F-H9mS1Q8-D-H0r_hIu-X74K-iU9O-B3C5uQ8W8G7vL2n7Qy8' });
+            if (token) {
+                await axios.post('/api/push-token', { token });
+                localStorage.setItem('push_registered', 'true');
+            }
+        } catch (error) {
+            console.error('Error registering for push notifications:', error);
+            // If the user denied, we store that we tried so we don't spam errors
+            if ((error as any).code === 'messaging/permission-blocked') {
+                localStorage.setItem('push_registered', 'denied');
+            }
+        }
+    };
+    
+    // Small delay to let the app load first
+    const timer = setTimeout(registerToken, 2000);
+    return () => clearTimeout(timer);
+  }, []);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
+  const [viewingTicket, setViewingTicket] = useState<Order | null>(null);
 
   // Milkshake State
   const [selectedMilkshakeSize, setSelectedMilkshakeSize] = useState<string | null>(null);
@@ -346,6 +559,10 @@ export default function App() {
   };
 
   const addToCart = (item: { name: string, price: number, quantity: number }) => {
+    if (settings?.isStoreOpen === false) {
+      alert("Desculpe, a loja está fechada no momento e não estamos aceitando pedidos.");
+      return;
+    }
     setCart(prev => [...prev, item]);
     showToast(`${item.name} adicionado!`);
   };
@@ -359,7 +576,7 @@ export default function App() {
 
   const [isDragging, setIsDragging] = useState(false);
 
-  const productCategories = ['acai', 'sorvete', 'milkshake', 'picole', 'promos', 'potes', 'addon'] as const;
+  const productCategories = ['acai', 'sorvete', 'milkshake', 'picole', 'promos', 'potes', 'potePersonalizado', 'addon'] as const;
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -563,8 +780,8 @@ export default function App() {
 
   const menuItems = [
     { id: 'sorvete', label: 'Sorvetes', icon: <IceCream />, color: 'bg-amarena-red' },
-    { id: 'acai', label: 'Açaí', icon: <AcaiBowlIcon />, color: 'bg-amarena-purple' },
-    { id: 'picole', label: 'Picolés', icon: <PopsicleBittenIcon />, color: 'bg-amarena-red' },
+    { id: 'acai', label: 'Açaí', icon: <Soup />, color: 'bg-amarena-purple' },
+    { id: 'picole', label: 'Picolés', icon: <IceCream />, color: 'bg-amarena-red' },
     { id: 'promos', label: 'Promoções', icon: <ShoppingBag />, color: 'bg-amarena-red' },
     { id: 'milkshake', label: 'Milkshake', icon: <CupSoda />, color: 'bg-amarena-red' },
     { id: 'potePersonalizado', label: 'Monte seu Pote', icon: <IceCream />, color: 'bg-amarena-orange' },
@@ -621,30 +838,45 @@ export default function App() {
       case 'home':
         return (
           <div className="flex flex-col items-center no-print bg-[#fff9f5] min-h-screen">
-            <header className="relative w-full bg-amarena-dark-red pt-8 pb-12 px-6 shadow-[0_10px_30px_rgba(150,18,29,0.3)] mb-8 overflow-visible border-b border-white/5">
-              <div className="flex items-start max-w-lg mx-auto relative z-30 w-full">
-                <Logo />
-                {/* Cart Button absolutely positioned near the awnings */}
-                <button 
-                  onClick={() => setCurrentScreen('checkout')}
-                  className="absolute bottom-1 right-0 bg-amarena-dark-red p-4 rounded-full text-white hover:bg-amarena-red transition-all shadow-[0_8px_20px_rgba(0,0,0,0.3)] border-[3px] border-white/20 active:scale-90 z-50 flex items-center justify-center transform hover:-translate-y-1"
-                >
-                  <ShoppingCart size={24} />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-amarena-green text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-amarena-dark-red shadow-lg animate-bounce">
-                      {cart.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-              
-              {/* Luxury Gloss Reflection Overlay */}
-              <div className="absolute top-0 left-0 right-0 h-full bg-gradient-to-tr from-white/5 via-white/10 to-transparent pointer-events-none opacity-40" />
-              
-              {/* Toldo/Awning effect */}
-              <Awning />
-            </header>
+      {/* Header */}
+      <header className="relative w-full bg-amarena-dark-red pt-8 pb-12 px-6 shadow-[0_10px_30px_rgba(150,18,29,0.3)] mb-8 overflow-visible border-b border-white/5">
+        <div className="flex items-start max-w-lg mx-auto relative z-30 w-full">
+          <Logo />
+          <button 
+            onClick={() => setCurrentScreen('checkout')}
+            className="absolute bottom-1 right-0 bg-amarena-dark-red p-4 rounded-full text-white hover:bg-amarena-red transition-all shadow-[0_8px_20px_rgba(0,0,0,0.3)] border-[3px] border-white/20 active:scale-90 z-50 flex items-center justify-center transform hover:-translate-y-1"
+          >
+            <ShoppingCart size={24} />
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-amarena-green text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-amarena-dark-red shadow-lg animate-bounce">
+                {cart.length}
+              </span>
+            )}
+          </button>
+        </div>
+        
+        {/* Luxury Gloss Reflection Overlay */}
+        <div className="absolute top-0 left-0 right-0 h-full bg-gradient-to-tr from-white/5 via-white/10 to-transparent pointer-events-none opacity-40" />
+        
+        {/* Toldo/Awning effect */}
+        <Awning />
+      </header>
             
+            {/* Store Closed Notice */}
+            {settings?.isStoreOpen === false && (
+              <div className="w-full px-5 max-w-lg mb-6 sticky top-2 z-[60]">
+                 <div className="bg-amarena-red text-white p-4 rounded-2xl shadow-xl flex items-center gap-4 animate-bounce">
+                    <div className="bg-white/20 p-2 rounded-xl">
+                       <X size={20} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm uppercase tracking-widest leading-none mb-1">Loja Fechada</p>
+                      <p className="text-[10px] opacity-90">Não estamos aceitando pedidos no momento.</p>
+                    </div>
+                 </div>
+              </div>
+            )}
+
             {/* Search Bar - Home */}
             <div className="w-full px-5 max-w-lg mb-6 sticky top-2 z-40">
               <div className="relative group">
@@ -813,6 +1045,16 @@ export default function App() {
               </div>
             </div>
 
+            {settings?.isStoreOpen === false && (
+              <div className="bg-amarena-red text-white p-4 rounded-2xl shadow-lg mb-8 flex items-center gap-4 animate-in slide-in-from-top-2 duration-300">
+                <X size={20} className="flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-sm uppercase tracking-widest leading-none mb-1">Loja Fechada</p>
+                  <p className="text-[10px] opacity-90">Não estamos aceitando pedidos no momento.</p>
+                </div>
+              </div>
+            )}
+
               <div className="grid grid-cols-1 gap-5">
                 {settings?.activePromotionTitle && (
                   <div className="bg-amarena-orange text-white p-6 rounded-[32px] shadow-lg mb-4">
@@ -902,6 +1144,13 @@ export default function App() {
                 </h2>
               </div>
               
+              {settings?.isStoreOpen === false && (
+                <div className="bg-white/10 text-white p-3 rounded-xl border border-white/20 flex items-center gap-3">
+                  <X size={16} />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Loja Fechada no momento</p>
+                </div>
+              )}
+
               {/* Category Toggle */}
               <div className="flex bg-white/20 p-1 rounded-2xl">
                  <button 
@@ -1133,6 +1382,18 @@ export default function App() {
               <h2 className="text-xl font-bold tracking-tight">Açaí</h2>
             </div>
             
+            {settings?.isStoreOpen === false && (
+              <div className="mx-6 mt-6 bg-amarena-red/5 p-4 rounded-2xl border border-amarena-red/10 flex items-center gap-4">
+                <div className="bg-amarena-red text-white p-2 rounded-xl">
+                  <X size={16} />
+                </div>
+                <div>
+                  <p className="text-amarena-red font-bold text-xs uppercase tracking-widest leading-none mb-1">Loja Fechada</p>
+                  <p className="text-[9px] text-stone-500 font-medium">Não estamos aceitando pedidos agora.</p>
+                </div>
+              </div>
+            )}
+
             {!selectedSize ? (
               <div className="px-6 py-8 space-y-6 flex-1">
                 <h3 className="text-lg font-bold text-stone-800">Escolha o Tamanho</h3>
@@ -1331,7 +1592,7 @@ export default function App() {
 
               <div className="w-full max-w-md bg-white p-8 md:p-12 rounded-[48px] shadow-premium border border-amarena/5 relative z-10">
                 <div className="flex flex-col items-center mb-8">
-                  <Logo light={false} />
+                  <Logo />
                   <div className="mt-8 bg-primary/5 px-4 py-2 rounded-full">
                     <p className="text-primary font-bold text-xs uppercase tracking-widest flex items-center gap-2">
                        <Settings size={14} className="animate-spin-slow" /> Painel Interno
@@ -1347,7 +1608,7 @@ export default function App() {
                       value={adminUser}
                       onChange={e => setAdminUser(e.target.value)}
                       className="w-full p-5 bg-stone-50 border-none rounded-3xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-amarena" 
-                      placeholder="Username"
+                      placeholder="Usuário"
                       required
                     />
                   </div>
@@ -1443,16 +1704,47 @@ export default function App() {
               <div className="max-w-4xl mx-auto">
                 {adminSection === 'dashboard' && (
                   <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                    <h2 className="text-3xl font-display font-bold text-stone-800 mb-8 uppercase tracking-tight">Painel de Controle</h2>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                       <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Painel de Controle</h2>
+                       <button 
+                         onClick={async () => {
+                           const nextStatus = !(settings?.isStoreOpen ?? true);
+                           const newSettings = { ...settings, isStoreOpen: nextStatus };
+                           setSettings(newSettings);
+                           try {
+                             await axios.put('/api/settings', newSettings, {
+                               headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+                             });
+                           } catch (err) {
+                             console.error("Error updating store status:", err);
+                             alert("Erro ao atualizar status da loja");
+                           }
+                         }}
+                         className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-bold transition-all ${
+                           (settings?.isStoreOpen ?? true) 
+                             ? 'bg-amarena-green/10 text-amarena-green border-2 border-amarena-green/20 hover:bg-amarena-green/20' 
+                             : 'bg-amarena-red/10 text-amarena-red border-2 border-amarena-red/20 hover:bg-amarena-red/20'
+                         }`}
+                       >
+                         <div className={`w-3 h-3 rounded-full animate-pulse ${ (settings?.isStoreOpen ?? true) ? 'bg-amarena-green' : 'bg-amarena-red' }`} />
+                         { (settings?.isStoreOpen ?? true) ? 'LOJA ABERTA' : 'LOJA FECHADA' }
+                       </button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center">
-                        <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1">Pedidos Pendentes</p>
+                      <button 
+                        onClick={() => setAdminSection('orders')}
+                        className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center hover:shadow-lg hover:border-amarena-red/10 transition-all group"
+                      >
+                        <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1 group-hover:text-amarena-red transition-colors">Pedidos Pendentes</p>
                         <p className="text-5xl font-display font-bold text-amarena-red">{orders.filter(o => o.status === 'pending').length}</p>
-                      </div>
-                      <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center">
-                        <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1">Total de Produtos</p>
+                      </button>
+                      <button 
+                        onClick={() => setAdminSection('products')}
+                        className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center hover:shadow-lg hover:border-amarena-green/10 transition-all group"
+                      >
+                        <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1 group-hover:text-amarena-green transition-colors">Total de Produtos</p>
                         <p className="text-5xl font-display font-bold text-amarena-green">{products.length}</p>
-                      </div>
+                      </button>
                       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center">
                         <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1">Total Hoje</p>
                         <p className="text-5xl font-display font-bold text-amarena-purple">R$ {orders.filter(o => new Date(o.createdAt).getDate() === new Date().getDate()).reduce((acc, curr) => acc + curr.total, 0).toFixed(0)}</p>
@@ -1523,7 +1815,12 @@ export default function App() {
                                   <p key={idx} className="text-stone-800 font-bold text-lg">{it.quantity}x {it.name}</p>
                                 ))}
                               </div>
-                              <p className="text-stone-400 text-sm mt-1 uppercase tracking-wider font-semibold">{order.paymentMethod} • R$ {order.total.toFixed(2)}</p>
+                              <p className="text-stone-400 text-sm mt-1 uppercase tracking-wider font-semibold">
+                                {order.paymentMethod === 'card' ? 'Cartão Online' :
+                                 order.paymentMethod === 'pix' || order.paymentMethod === 'PIX Manual' ? 'PIX' :
+                                 order.paymentMethod === 'delivery_payment' ? 'Pagar na Entrega' :
+                                 order.paymentMethod} • R$ {order.total.toFixed(2)}
+                              </p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               {/* Flow: Pending -> Preparing -> Shipped -> Completed */}
@@ -1596,7 +1893,15 @@ export default function App() {
 
                 {adminSection === 'addons' && (
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                     <h2 className="text-3xl font-display font-bold text-stone-800 mb-8 uppercase tracking-tight">Gerenciar Adicionais</h2>
+                     <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Gerenciar Adicionais</h2>
+                        <button 
+                          onClick={() => { setEditingProduct({ category: 'addon' }); setAdminSection('products'); }}
+                          className="flex items-center gap-2 px-6 py-3 bg-amarena-red text-white rounded-2xl shadow-lg shadow-amarena-red/20 font-bold text-sm hover:translate-y-[-2px] transition-all"
+                        >
+                          <Plus size={18} /> Novo Adicional
+                        </button>
+                     </div>
                      <div className="bg-white rounded-[32px] border border-stone-100 overflow-x-auto shadow-sm">
                         <table className="w-full text-left">
                            <thead className="bg-stone-50 border-b border-stone-100 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
@@ -1636,6 +1941,21 @@ export default function App() {
                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                       <h2 className="text-3xl font-display font-bold text-stone-800 mb-8 uppercase tracking-tight">Configurações</h2>
                       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100">
+                        <div className="mb-8 p-6 bg-stone-50 rounded-[24px] border border-stone-100 flex items-center justify-between">
+                          <div>
+                             <h3 className="font-bold text-stone-800">Status da Loja</h3>
+                             <p className="text-xs text-stone-500">Controle se a loja está aceitando novos pedidos</p>
+                          </div>
+                          <button 
+                            onClick={() => setSettings({...settings, isStoreOpen: !(settings?.isStoreOpen ?? true)})}
+                            className={`px-6 py-2 rounded-full font-black text-[10px] tracking-widest transition-all ${
+                              (settings?.isStoreOpen ?? true) ? 'bg-amarena-green text-white shadow-lg shadow-amarena-green/20' : 'bg-stone-200 text-stone-400'
+                            }`}
+                          >
+                             {(settings?.isStoreOpen ?? true) ? 'ABERTA' : 'FECHADA'}
+                          </button>
+                        </div>
+
                         <h3 className="font-bold text-stone-800 mb-6">Preços de Açaí</h3>
                         <div className="grid grid-cols-2 gap-4">
                            {['300', '400', '500', '700', 'M500', 'G800'].map(id => (
@@ -1802,7 +2122,17 @@ export default function App() {
                                     className="w-full p-4 bg-stone-50 rounded-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none"
                                   >
                                     {productCategories.map(cat => (
-                                      <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                                      <option key={cat} value={cat}>
+                                        {cat === 'acai' ? 'Açaí' : 
+                                         cat === 'picole' ? 'Picolé' :
+                                         cat === 'promos' ? 'Promoções' :
+                                         cat === 'sorvete' ? 'Sorvete' :
+                                         cat === 'potes' ? 'Potes' :
+                                         cat === 'milkshake' ? 'Milkshake' :
+                                         cat === 'potePersonalizado' ? 'Monte seu Pote' :
+                                         cat === 'addon' ? 'Adicional' :
+                                         cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                      </option>
                                     ))}
                                   </select>
                                </div>
@@ -1934,7 +2264,15 @@ export default function App() {
                                           </td>
                                           <td className="px-6 py-4">
                                             <span className="px-2 py-1 bg-stone-100 rounded-lg text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                                               {p.category || 'Sem categoria'}
+                                               {p.category === 'acai' ? 'Açaí' : 
+                                                p.category === 'picole' ? 'Picolé' :
+                                                p.category === 'promos' ? 'Promoções' :
+                                                p.category === 'sorvete' ? 'Sorvete' :
+                                                p.category === 'potes' ? 'Potes' :
+                                                p.category === 'milkshake' ? 'Milkshake' :
+                                                p.category === 'potePersonalizado' ? 'Monte seu Pote' :
+                                                p.category === 'addon' ? 'Adicional' :
+                                                (p.category?.charAt(0).toUpperCase() + p.category?.slice(1)) || 'Sem categoria'}
                                             </span>
                                           </td>
                                           <td className="px-6 py-4 font-bold text-stone-700">R$ {p.price.toFixed(2)}</td>
@@ -1990,16 +2328,25 @@ export default function App() {
 
         const finishOrder = async (method: string) => {
           if (!clientName || !clientPhone) {
-            alert("Por favor, preencha seu Nome e Telefone para continuar.");
+            showToast("Preencha seu Nome e Telefone!");
+            return;
+          }
+
+          if (deliveryType === 'delivery' && (!address || !addressNumber || !neighborhood)) {
+            showToast("Preencha o endereço completo!");
             return;
           }
           
-          if (!confirm("Deseja confirmar e enviar seu pedido?")) return;
-
           saveClientData();
 
           try {
             setLoading(true);
+            if (settings?.isStoreOpen === false) {
+              alert("Desculpe, a loja fechou enquanto você montava seu pedido.");
+              setLoading(false);
+              return;
+            }
+
             const res = await axios.post('/api/orders', {
               items: cart,
               total: total,
@@ -2017,8 +2364,9 @@ export default function App() {
             setCart([]);
             setSelectedSize(null);
             setSelections([]);
-          } catch {
-            alert("Erro ao enviar pedido.");
+          } catch (err: any) {
+            console.error("Order error:", err);
+            showToast("Erro ao enviar pedido. Tente novamente.");
           } finally {
             setLoading(false);
           }
@@ -2149,7 +2497,7 @@ export default function App() {
                     </button>
                   </div>
                   <p className="text-[10px] text-stone-400 leading-tight">Ao clicar em confirmar, seu pedido será enviado para nossa cozinha. O pagamento deve ser feito agora.</p>
-                  <Button variant="secondary" className="w-full mt-6 py-4 text-lg" onClick={() => finishOrder('PIX Manual')}>Enviar Pedido via PIX</Button>
+                  <Button variant="secondary" loading={loading} className="w-full mt-6 py-4 text-lg" onClick={() => finishOrder('PIX Manual')}>Enviar Pedido via PIX</Button>
                 </motion.div>
               )}
 
@@ -2158,7 +2506,7 @@ export default function App() {
               )}
 
               {paymentMethod === 'delivery_payment' && (
-                <Button variant="secondary" className="w-full py-5 text-xl shadow-xl shadow-amarena-green/20 bg-amarena-green" onClick={() => finishOrder('Pagar na Entrega')}>Finalizar Pedido</Button>
+                <Button variant="secondary" loading={loading} className="w-full py-5 text-xl shadow-xl shadow-amarena-green/20 bg-amarena-green" onClick={() => finishOrder('Pagar na Entrega')}>Finalizar Pedido</Button>
               )}
             </div>
           </div>
@@ -2182,7 +2530,7 @@ export default function App() {
         );
 
       case 'history': {
-        return <OrderHistory clientPhone={clientPhone} setCurrentScreen={setCurrentScreen} setCart={setCart} />;
+        return <OrderHistory clientPhone={clientPhone} setCurrentScreen={setCurrentScreen} setCart={setCart} setViewingTicket={setViewingTicket} />;
       }
 
       default:
@@ -2225,16 +2573,30 @@ export default function App() {
 
         {/* Footer Branding (Hidden in Admin and Print) */}
         {!['admin', 'checkout', 'success'].includes(currentScreen) && (
-          <footer className="py-12 flex flex-col items-center opacity-30 select-none pointer-events-none no-print">
-            <Logo />
-            <div className="mt-4 flex gap-4 text-primary">
-              <IceCream size={16} />
-              <IceCream size={16} />
-              <IceCream size={16} />
+          <footer className="py-12 flex flex-col items-center opacity-30 select-none no-print">
+            <div className="pointer-events-none flex flex-col items-center">
+              <Logo />
+              <div className="mt-4 flex gap-4 text-primary">
+                <IceCream size={16} />
+                <IceCream size={16} />
+                <IceCream size={16} />
+              </div>
             </div>
+            <button 
+              onClick={() => setCurrentScreen('admin')}
+              className="mt-8 text-[10px] uppercase font-black tracking-widest text-stone-400 hover:text-amarena-red transition-colors cursor-pointer px-4 py-2"
+            >
+              Acesso Administrativo
+            </button>
           </footer>
         )}
       </div>
+
+      <AnimatePresence>
+        {viewingTicket && (
+          <ModernTicket order={viewingTicket} onDismiss={() => setViewingTicket(null)} />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast.visible && (

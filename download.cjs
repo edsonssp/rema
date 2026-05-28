@@ -6,7 +6,7 @@ if (!fs.existsSync('public')) {
 }
 
 const url = "https://storage.googleapis.com/shari-img/3947b74f-9e8c-4876-805c-e5bc418182cd";
-const file = fs.createWriteStream("public/logo.png");
+const file = fs.createWriteStream("public/Logo_backup.png");
 
 https.get(url, response => {
   response.pipe(file);
@@ -15,6 +15,6 @@ https.get(url, response => {
     console.log("Download completed");
   });
 }).on('error', err => {
-  fs.unlink("public/logo.png", () => {});
+  fs.unlink("public/Logo_backup.png", () => {});
   console.error("Error downloading:", err.message);
 });
