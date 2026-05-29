@@ -47,7 +47,11 @@ async function getDb() {
     if (!MONGO_URL) {
       throw new Error("MONGO_URL environment variable is not defined");
     }
-    dbClient = new MongoClient(MONGO_URL);
+    dbClient = new MongoClient(MONGO_URL, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+    });
     await dbClient.connect();
     database = dbClient.db(DB_NAME);
     console.log(`Connected to MongoDB: ${DB_NAME}`);
@@ -89,7 +93,20 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: "10mb" }));
 
-  // --- API Routes ---
+  // API Routes ---
+  
+  // Pre-connect to DB
+  try {
+    console.log("Pre-connecting to MongoDB...");
+    const db = await getDb();
+    // Ensure indexes for better performance
+    await db.collection("products").createIndex({ category: 1 });
+    await db.collection("orders").createIndex({ "clientInfo.phone": 1, createdAt: -1 });
+    await db.collection("orders").createIndex({ createdAt: -1 });
+    console.log("Database pre-connected and indexes ensured.");
+  } catch (err) {
+    console.warn("Failed to pre-connect to MongoDB or create indexes. This might cause slowness on first request.", err);
+  }
 
   app.get("/api/health", async (_req, res) => {
     try {

@@ -454,6 +454,35 @@ const OrderTicket = ({ order }: { order: Order | null }) => {
   );
 };
 
+const SplashScreen = () => (
+  <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center">
+    <motion.div 
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="flex flex-col items-center"
+    >
+      <div className="w-48 h-48 mb-8 relative">
+        <img src="/Logo.png" alt="Logo" className="w-full h-full object-contain animate-pulse" />
+        <div className="absolute inset-0 bg-white/20 blur-xl animate-pulse" />
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex gap-2">
+          {[0, 1, 2].map(i => (
+            <motion.div
+              key={i}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.1 }}
+              className="w-3 h-3 bg-amarena-red rounded-full"
+            />
+          ))}
+        </div>
+        <p className="text-[10px] uppercase font-black tracking-[0.2em] text-stone-300 mt-4">Amarena Premium</p>
+      </div>
+    </motion.div>
+  </div>
+);
+
 // --- App ---
 
 type AppSettings = {
@@ -474,6 +503,7 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
   
@@ -657,10 +687,14 @@ export default function App() {
 
     const load = async () => {
       if (!isMounted) return;
-      await fetchProducts();
-      await fetchSettings();
-      if (isAdminLoggedIn) {
-        await fetchOrders();
+      try {
+        const promises = [fetchProducts(), fetchSettings()];
+        if (isAdminLoggedIn) {
+          promises.push(fetchOrders());
+        }
+        await Promise.all(promises);
+      } finally {
+        setTimeout(() => setIsInitialLoading(false), 800); // Small delay for smooth transition
       }
     };
     load();
@@ -2549,6 +2583,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center font-sans selection:bg-primary/20 selection:text-primary">
+      <AnimatePresence>
+        {isInitialLoading && <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.5 }}><SplashScreen /></motion.div>}
+      </AnimatePresence>
       {/* Background Decorative Pattern */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden no-print">
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary blur-3xl" />
