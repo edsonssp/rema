@@ -143,10 +143,11 @@ async function startServer() {
   app.post("/api/products", authenticateAdmin, async (req, res) => {
     try {
       const db = await getDb();
-      const { name, category, price, description, image, active } = req.body;
+      const { name, category, subcategory, price, description, image, active } = req.body;
       const result = await db.collection("products").insertOne({ 
         name, 
         category, 
+        subcategory,
         price: parseFloat(price), 
         description, 
         image,
@@ -162,13 +163,14 @@ async function startServer() {
   app.put("/api/products/:id", authenticateAdmin, async (req, res) => {
     try {
       const db = await getDb();
-      const { name, category, price, description, image, active } = req.body;
+      const { name, category, subcategory, price, description, image, active } = req.body;
       await db.collection("products").updateOne(
         { _id: new ObjectId(req.params.id) },
         { 
           $set: { 
             name, 
             category, 
+            subcategory,
             price: parseFloat(price), 
             description, 
             image,

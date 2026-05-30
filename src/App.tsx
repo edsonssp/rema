@@ -36,6 +36,7 @@ interface Product {
   id: string;
   name: string;
   category: 'acai' | 'sorvete' | 'milkshake' | 'picole' | 'promos' | 'potes' | 'addon';
+  subcategory?: 'frutas' | 'leite' | 'especial' | 'gourmet';
   price: number;
   description: string;
   image?: string;
@@ -607,6 +608,23 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
 
   const productCategories = ['acai', 'sorvete', 'milkshake', 'picole', 'promos', 'potes', 'potePersonalizado', 'addon'] as const;
+  const picoleSubcategories = [
+    { id: 'frutas', label: 'Frutas' },
+    { id: 'leite', label: 'Leite' },
+    { id: 'especial', label: 'Especial' },
+    { id: 'gourmet', label: 'Gourmet' }
+  ] as const;
+
+  const [currentPicoleSub, setCurrentPicoleSub] = useState<Product['subcategory']>('frutas');
+
+  const preloadImages = (productList: Product[]) => {
+    productList.forEach(product => {
+      if (product.image) {
+        const img = new Image();
+        img.src = product.image;
+      }
+    });
+  };
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -617,8 +635,8 @@ export default function App() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 500;
-          const MAX_HEIGHT = 500;
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
           let width = img.width;
           let height = img.height;
 
@@ -638,7 +656,7 @@ export default function App() {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          resolve(canvas.toDataURL('image/jpeg', 0.5));
         };
       };
     });
@@ -657,6 +675,7 @@ export default function App() {
     try {
       const res = await axios.get('/api/products');
       setProducts(res.data);
+      preloadImages(res.data);
     } catch (err) {
       console.error("Error fetching products:", err);
     }
@@ -1096,13 +1115,31 @@ export default function App() {
                     <p className="text-sm opacity-90">{settings.activePromotionBody}</p>
                   </div>
                 )}
+                {currentScreen === 'picole' && (
+                  <div className="flex bg-stone-100/80 backdrop-blur-sm p-1 rounded-2xl mb-6 overflow-x-auto no-scrollbar border border-stone-200/50 shadow-inner">
+                    {picoleSubcategories.map(sub => (
+                      <button 
+                        key={sub.id}
+                        onClick={() => setCurrentPicoleSub(sub.id)}
+                        className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-[10px] tracking-widest transition-all whitespace-nowrap ${currentPicoleSub === sub.id ? 'bg-white text-amarena-red shadow-sm' : 'text-stone-500 hover:text-amarena-red'}`}
+                      >
+                        {sub.label.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {products.filter(p => {
                   const matchesCategory = currentScreen === 'sorvete' 
                     ? (p.category === 'sorvete' || p.category === 'potes')
                     : (p.category === currentScreen);
+                  
+                  const matchesSubcategory = currentScreen === 'picole' 
+                    ? (p.subcategory === currentPicoleSub || (!p.subcategory && currentPicoleSub === 'frutas'))
+                    : true;
+
                   const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                                       p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-                  return matchesCategory && (p.active ?? true) && matchesSearch;
+                  return matchesCategory && matchesSubcategory && (p.active ?? true) && matchesSearch;
                 }).length === 0 ? (
                   <div className="py-20 text-center text-stone-400 bg-white/50 rounded-[40px] border border-dashed border-stone-200">
                     <Package size={48} className="mx-auto mb-4 opacity-10" />
@@ -1113,9 +1150,14 @@ export default function App() {
                     const matchesCategory = currentScreen === 'sorvete' 
                       ? (p.category === 'sorvete' || p.category === 'potes')
                       : (p.category === currentScreen);
+                    
+                    const matchesSubcategory = currentScreen === 'picole' 
+                      ? (p.subcategory === currentPicoleSub || (!p.subcategory && currentPicoleSub === 'frutas'))
+                      : true;
+
                     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                                         p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-                    return matchesCategory && (p.active ?? true) && matchesSearch;
+                    return matchesCategory && matchesSubcategory && (p.active ?? true) && matchesSearch;
                   }).map(product => (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
@@ -1128,6 +1170,7 @@ export default function App() {
                         {product.image ? (
                           <img 
                             src={product.image} 
+                            loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                             alt={product.name} 
                             referrerPolicy="no-referrer" 
@@ -2152,7 +2195,7 @@ export default function App() {
                                   <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">Categoria</label>
                                   <select 
                                     value={editingProduct?.category || 'sorvete'}
-                                    onChange={e => setEditingProduct(prev => ({ ...prev, category: e.target.value as Product['category'] }))}
+                                    onChange={e => setEditingProduct(prev => ({ ...prev, category: e.target.value as Product['category'], subcategory: e.target.value === 'picole' ? 'frutas' : undefined }))}
                                     className="w-full p-4 bg-stone-50 rounded-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none"
                                   >
                                     {productCategories.map(cat => (
@@ -2170,6 +2213,20 @@ export default function App() {
                                     ))}
                                   </select>
                                </div>
+                               {editingProduct?.category === 'picole' && (
+                                 <div className="space-y-1">
+                                   <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">Subcategoria</label>
+                                   <select 
+                                     value={editingProduct?.subcategory || 'frutas'}
+                                     onChange={e => setEditingProduct(prev => ({ ...prev, subcategory: e.target.value as Product['subcategory'] }))}
+                                     className="w-full p-4 bg-stone-50 rounded-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none"
+                                   >
+                                     {picoleSubcategories.map(sub => (
+                                       <option key={sub.id} value={sub.id}>{sub.label}</option>
+                                     ))}
+                                   </select>
+                                 </div>
+                               )}
                                <div className="space-y-1">
                                   <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">Preço (R$)</label>
                                   <input 
