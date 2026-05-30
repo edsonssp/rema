@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Amarena Sorvetes</string>
+    <string name="title_activity_main">Amarena Sorvetes</string>
+    <string name="package_name">com.amarena.sorvetes</string>
+    <string name="custom_url_scheme">com.amarena.sorvetes</string>
+</resources>
