@@ -641,6 +641,66 @@ const LoyaltyCard = ({ completedOrders, clientName }: { completedOrders: number,
   );
 };
 
+const DailyClosingTicket = ({ orders, operatorName }: { orders: Order[], operatorName: string }) => {
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled');
+  const total = todayOrders.reduce((acc, curr) => acc + curr.total, 0);
+  
+  const methods = {
+    'delivery_payment': { label: 'DINHEIRO/ENTREGA', total: 0 },
+    'pix': { label: 'PIX', total: 0 },
+    'card': { label: 'CARTÃO VIA APP', total: 0 },
+    'others': { label: 'OUTROS', total: 0 }
+  };
+
+  todayOrders.forEach(o => {
+    const m = o.paymentMethod?.toLowerCase();
+    if (m?.includes('delivery')) methods.delivery_payment.total += o.total;
+    else if (m?.includes('pix')) methods.pix.total += o.total;
+    else if (m?.includes('card')) methods.card.total += o.total;
+    else methods.others.total += o.total;
+  });
+
+  return (
+    <div className="print-only p-4 text-black font-mono w-[80mm] mx-auto bg-white text-[12px]">
+      <div className="text-center border-b-2 border-black pb-2 mb-4">
+        <h2 className="text-lg font-bold uppercase">Amarena Sorvetes</h2>
+        <p className="font-bold">FECHAMENTO DE CAIXA</p>
+        <p>--------------------------------</p>
+        <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
+        <p>Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
+      </div>
+
+      <div className="mb-4">
+        <p className="font-bold uppercase">Operador: {operatorName || 'Não informado'}</p>
+        <p>--------------------------------</p>
+      </div>
+
+      <div className="mb-4">
+        <p className="font-bold uppercase text-sm mb-1">Resumo Financeiro</p>
+        {Object.values(methods).filter(m => m.total > 0).map(m => (
+          <div key={m.label} className="flex justify-between items-center mb-1">
+             <span className="uppercase">{m.label}</span>
+             <span className="font-bold">R$ {m.total.toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t-2 border-black pt-2 mb-4">
+        <div className="flex justify-between font-bold text-base">
+          <span>TOTAL GERAL</span>
+          <span>R$ {total.toFixed(2)}</span>
+        </div>
+        <p>Total de Pedidos: {todayOrders.length}</p>
+      </div>
+
+      <div className="text-center mt-6 text-[10px] uppercase">
+        <p>Relatório Gerencial</p>
+        <p>Amarena Premium Software</p>
+      </div>
+    </div>
+  );
+};
+
 // --- App ---
 
 type AppSettings = {
@@ -2457,17 +2517,12 @@ export default function App() {
 
                 {adminSection === 'daily-closing' && (
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="hidden print:block mb-10 text-center border-b pb-8">
-                       <h1 className="font-brand text-4xl text-amarena-red mb-2 italic">Amarena Sorvetes</h1>
-                       <h2 className="text-xl font-bold uppercase tracking-widest text-stone-800">Relatório de Fechamento de Caixa</h2>
-                       <p className="text-stone-500 mt-2">Data: {new Date().toLocaleDateString('pt-BR')} | Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
-                    </div>
-
                     <div className="flex justify-between items-center mb-8 no-print">
                        <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Fechamento de Caixa</h2>
                        <button 
                          onClick={() => {
-                           setToast({ message: 'Preparando impressão...', visible: true });
+                           if (!operatorName) return alert("Por favor, informe seu nome para o fechamento.");
+                           setToast({ message: 'Preparando impressão 80mm...', visible: true });
                            setTimeout(() => {
                              window.print();
                              setToast({ message: '', visible: false });
@@ -2475,11 +2530,11 @@ export default function App() {
                          }}
                          className="flex items-center gap-2 px-6 py-3 bg-stone-800 text-white rounded-2xl font-bold text-sm shadow-xl shadow-stone-200 active:scale-95 transition-all"
                        >
-                         <Printer size={18} /> Imprimir Relatório
+                         <Printer size={18} /> Imprimir Cupom 80mm
                        </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 no-print">
                        <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
                           <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total em Vendas</p>
                           <p className="text-3xl font-brand text-amarena-purple">
@@ -2714,7 +2769,7 @@ export default function App() {
                         onClick={() => { setOrdersTab('completed'); setOrdersSearchTerm(''); }}
                         className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'completed' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
                       >
-                        Concluídos ({orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled')).length})
+                        Concluídos ({orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled') && new Date(o.createdAt).toDateString() === new Date().toDateString()).length})
                       </button>
                       <button
                         onClick={() => { setOrdersTab('archived'); setOrdersSearchTerm(''); }}
@@ -2749,11 +2804,14 @@ export default function App() {
                     {/* Master Orders List */}
                     <div className="space-y-4">
                       {(() => {
+                        const isToday = (date: string | Date) => new Date(date).toDateString() === new Date().toDateString();
                         const activeList = orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled');
-                        const completedList = orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled'));
+                        const completedList = orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled') && isToday(o.createdAt));
                         const archivedList = orders.filter(o => {
                           if (!ordersSearchTerm) {
-                            return o.archived === true;
+                            // Show orders that are archived OR finished orders from different days
+                            const isOldFinished = (o.status === 'completed' || o.status === 'cancelled') && !isToday(o.createdAt);
+                            return o.archived === true || isOldFinished;
                           }
                           const term = ordersSearchTerm.toLowerCase();
                           const idMatch = o.id?.toLowerCase().includes(term);
@@ -3765,6 +3823,7 @@ export default function App() {
 
       {/* Actual Hidden Ticket for Browser Printing */}
       <OrderTicket order={printOrder} />
+      <DailyClosingTicket orders={orders} operatorName={operatorName} />
 
       <AnimatePresence>
         {publicTrackingOrderId && (
