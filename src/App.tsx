@@ -20,6 +20,7 @@ import {
   Package,
   History,
   RefreshCcw,
+  RefreshCw,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -2131,6 +2132,7 @@ export default function App() {
                          { (settings?.isStoreOpen ?? true) ? 'LOJA ABERTA' : 'LOJA FECHADA' }
                        </button>
                     </div>
+                  </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <button 
                         onClick={() => setAdminSection('orders')}
