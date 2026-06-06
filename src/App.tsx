@@ -873,6 +873,61 @@ export default function App() {
   };
 
   useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state) {
+        if (event.state.screen) {
+          setCurrentScreen(event.state.screen);
+        }
+        
+        // Sincronizar sub-estados se existirem no histórico
+        if ('selectedSize' in event.state) setSelectedSize(event.state.selectedSize);
+        if ('selectedTubSize' in event.state) setSelectedTubSize(event.state.selectedTubSize);
+        if ('selectedMilkshakeSize' in event.state) setSelectedMilkshakeSize(event.state.selectedMilkshakeSize);
+      } else {
+        setCurrentScreen('home');
+        setSelectedSize(null);
+        setSelectedTubSize(null);
+        setSelectedMilkshakeSize(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Initial state
+    if (!window.history.state) {
+      window.history.replaceState({ 
+        screen: currentScreen,
+        selectedSize: null,
+        selectedTubSize: null,
+        selectedMilkshakeSize: null
+      }, '');
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const currentState = window.history.state;
+    const hasChanged = !currentState || 
+                     currentState.screen !== currentScreen || 
+                     currentState.selectedSize !== selectedSize ||
+                     currentState.selectedTubSize !== selectedTubSize ||
+                     currentState.selectedMilkshakeSize !== selectedMilkshakeSize;
+
+    if (hasChanged) {
+      // Evitar empilhar admin desnecessário
+      if (currentScreen !== 'admin' || isAdminLoggedIn) {
+        window.history.pushState({ 
+          screen: currentScreen,
+          selectedSize,
+          selectedTubSize,
+          selectedMilkshakeSize
+        }, '');
+      }
+    }
+  }, [currentScreen, selectedSize, selectedTubSize, selectedMilkshakeSize, isAdminLoggedIn]);
+
+  useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash;
       if (hash === '#admin') {
@@ -1488,6 +1543,35 @@ export default function App() {
                     ))}
                   </motion.div>
             </div>
+
+            <AnimatePresence>
+              {cart.length > 0 && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
+                >
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
+                        {cart.length}
+                      </div>
+                      <span className="text-sm">Ver Carrinho</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
+                       <ChevronRight size={20} />
+                    </div>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
 
@@ -1505,9 +1589,31 @@ export default function App() {
                 >
                   <ChevronLeft size={24} />
                 </button>
-                <h2 className="text-xl font-bold tracking-tight text-center flex-1 pr-10">
+                <h2 className="text-xl font-bold tracking-tight text-center flex-1 pr-0">
                   {milkshakeCategory === 'milkshake' ? 'Milkshake' : 'Sundae'}
                 </h2>
+                <div className="relative">
+                  <motion.button 
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
+                  >
+                    <ShoppingCart size={24} />
+                    <AnimatePresence>
+                      {cart.length > 0 && (
+                        <motion.span 
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          key={cart.length}
+                          className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-purple shadow-sm"
+                        >
+                          {cart.length}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
               </div>
               
               {settings?.isStoreOpen === false && (
@@ -1635,6 +1741,35 @@ export default function App() {
                 );
               })()}
             </div>
+
+            <AnimatePresence>
+              {cart.length > 0 && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
+                >
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
+                        {cart.length}
+                      </div>
+                      <span className="text-sm">Ver Carrinho</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
+                       <ChevronRight size={20} />
+                    </div>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       }
@@ -1642,14 +1777,38 @@ export default function App() {
       case 'potePersonalizado': {
         return (
           <div className="animate-in fade-in duration-500 no-print flex flex-col min-h-screen bg-white">
-            <div className="bg-amarena-orange p-6 text-white flex items-center gap-4 sticky top-0 z-50">
-              <button 
-                onClick={() => { setCurrentScreen('home'); setSelectedTubSize(null); setTubFlavors(['', '', '']); }}
-                className="hover:bg-white/20 p-2 rounded-xl"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <h2 className="text-xl font-bold tracking-tight">Monte seu Pote</h2>
+            <div className="bg-amarena-orange p-6 text-white flex items-center justify-between gap-4 sticky top-0 z-50">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => { setCurrentScreen('home'); setSelectedTubSize(null); setTubFlavors(['', '', '']); }}
+                  className="hover:bg-white/20 p-2 rounded-xl"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <h2 className="text-xl font-bold tracking-tight">Monte seu Pote</h2>
+              </div>
+              <div className="relative">
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setCurrentScreen('checkout')}
+                  className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
+                >
+                  <ShoppingCart size={24} />
+                  <AnimatePresence>
+                    {cart.length > 0 && (
+                      <motion.span 
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        key={cart.length}
+                        className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-orange shadow-sm"
+                      >
+                        {cart.length}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
             </div>
             
             <div className="flex-1 p-6 space-y-8 pb-20">
@@ -1731,6 +1890,35 @@ export default function App() {
                 );
               })()}
             </div>
+
+            <AnimatePresence>
+              {cart.length > 0 && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
+                >
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
+                        {cart.length}
+                      </div>
+                      <span className="text-sm">Ver Carrinho</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
+                       <ChevronRight size={20} />
+                    </div>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       }
@@ -1738,14 +1926,38 @@ export default function App() {
       case 'acai':
         return (
           <div className="animate-in fade-in duration-500 no-print flex flex-col min-h-screen bg-white">
-            <div className="bg-amarena-purple p-6 text-white flex items-center gap-4 sticky top-0 z-50">
-              <button 
-                onClick={() => { setCurrentScreen('home'); setSelectedSize(null); }}
-                className="hover:bg-white/20 p-2 rounded-xl"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <h2 className="text-xl font-bold tracking-tight">Açaí</h2>
+            <div className="bg-amarena-purple p-6 text-white flex items-center justify-between gap-4 sticky top-0 z-50">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => { setCurrentScreen('home'); setSelectedSize(null); }}
+                  className="hover:bg-white/20 p-2 rounded-xl"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <h2 className="text-xl font-bold tracking-tight">Açaí</h2>
+              </div>
+              <div className="relative">
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setCurrentScreen('checkout')}
+                  className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
+                >
+                  <ShoppingCart size={24} />
+                  <AnimatePresence>
+                    {cart.length > 0 && (
+                      <motion.span 
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        key={cart.length}
+                        className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-purple shadow-sm"
+                      >
+                        {cart.length}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
             </div>
             
             {settings?.isStoreOpen === false && (
@@ -1945,6 +2157,35 @@ export default function App() {
                  })()}
               </div>
             )}
+            <AnimatePresence>
+              {cart.length > 0 && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
+                >
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs"
+                      >
+                        {cart.length}
+                      </div>
+                      <span className="text-sm">Ver Carrinho</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
+                       <ChevronRight size={20} />
+                    </div>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
 
