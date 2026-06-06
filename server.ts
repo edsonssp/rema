@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { MongoClient, ObjectId, Db } from "mongodb";
 import { MercadoPagoConfig, Preference } from "mercadopago";
@@ -11,6 +11,7 @@ import admin from "firebase-admin";
 
 dotenv.config();
 
+// --- Final Polish for production runtime ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,6 +23,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "amarena_fallback_secret_2025";
 const ADMIN_USER = process.env.ADMIN_USERNAME || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || "admin123";
 
+console.log("[Amarena] Starting startup sequence...");
+
 // --- Lazy Initialization of Firebase Admin ---
 let adminInitialized = false;
 
@@ -32,8 +35,9 @@ function initFirebaseAdmin() {
         credential: admin.credential.applicationDefault()
       });
       adminInitialized = true;
+      console.log("[Amarena] Firebase Admin initialized.");
     } catch (err) {
-      console.warn("Firebase Admin failed to initialize. Push notifications might not work.", err);
+      console.warn("[Amarena] Firebase Admin failed to initialize. Push notifications might not work.", err);
     }
   }
 }
@@ -41,22 +45,40 @@ function initFirebaseAdmin() {
 // --- Lazy Initialization of MongoDB ---
 let dbClient: MongoClient | null = null;
 let database: Db | null = null;
+let dbConnectingPromise: Promise<Db> | null = null;
 
 async function getDb() {
-  if (!database) {
-    if (!MONGO_URL) {
-      throw new Error("MONGO_URL environment variable is not defined");
-    }
-    dbClient = new MongoClient(MONGO_URL, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 10000,
-    });
-    await dbClient.connect();
-    database = dbClient.db(DB_NAME);
-    console.log(`Connected to MongoDB: ${DB_NAME}`);
+  if (database) return database;
+  
+  if (!dbConnectingPromise) {
+    dbConnectingPromise = (async () => {
+      try {
+        if (!MONGO_URL) {
+          throw new Error("MONGO_URL environment variable is not defined. Please set it in AI Studio Settings.");
+        }
+        console.log("[Amarena] Establishing MongoDB connection...");
+        dbClient = new MongoClient(MONGO_URL, {
+          maxPoolSize: 10,
+          minPoolSize: 2,
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 10000,
+        });
+        
+        await dbClient.connect();
+        const db = dbClient.db(DB_NAME);
+        database = db;
+        
+        console.log(`[Amarena] Successfully connected to MongoDB: ${DB_NAME}`);
+        return db;
+      } catch (error) {
+        dbConnectingPromise = null;
+        console.error("[Amarena] MongoDB connection error:", error instanceof Error ? error.message : String(error));
+        throw error;
+      }
+    })();
   }
-  return database;
+  
+  return dbConnectingPromise;
 }
 
 // --- Mercado Pago Setup ---
@@ -90,32 +112,46 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log("[Amarena] Initialization Info:");
+  console.log("  - DB Status:", MONGO_URL ? "URL Provided" : "URL MISSING");
+  console.log("  - MP Status:", MP_ACCESS_TOKEN ? "Token Provided" : "Token MISSING");
+  console.log("  - ENV:", process.env.NODE_ENV || "development");
+
+  // IMMEDIATELY START LISTENING to satisfy health checks
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[Amarena] Listening on port ${PORT} (satisfying health checks)`);
+  });
+
   app.use(cors());
   app.use(express.json({ limit: "10mb" }));
 
-  // API Routes ---
-  
-  // Pre-connect to DB
-  try {
-    console.log("Pre-connecting to MongoDB...");
-    const db = await getDb();
-    // Ensure indexes for better performance
-    await db.collection("products").createIndex({ category: 1 });
-    await db.collection("orders").createIndex({ "clientInfo.phone": 1, createdAt: -1 });
-    await db.collection("orders").createIndex({ createdAt: -1 });
-    console.log("Database pre-connected and indexes ensured.");
-  } catch (err) {
-    console.warn("Failed to pre-connect to MongoDB or create indexes. This might cause slowness on first request.", err);
-  }
+  // Pre-connect and ensure indexes in background
+  getDb().then(async (db) => {
+    try {
+      console.log("[Amarena] Ensuring database indexes...");
+      await db.collection("products").createIndex({ category: 1 });
+      await db.collection("products").createIndex({ active: 1 });
+      await db.collection("orders").createIndex({ "clientInfo.phone": 1, createdAt: -1 });
+      await db.collection("orders").createIndex({ createdAt: -1 });
+      await db.collection("orders").createIndex({ status: 1 });
+      await db.collection("pushTokens").createIndex({ token: 1 }, { unique: true });
+      console.log("[Amarena] Database indexes ensured.");
+    } catch (idxErr) {
+      console.warn("[Amarena] Index creation warning:", idxErr instanceof Error ? idxErr.message : String(idxErr));
+    }
+  }).catch(err => {
+    console.warn("[Amarena] Background DB startup failed:", err.message);
+  });
 
   app.get("/api/health", async (_req, res) => {
     try {
-      const db = await getDb();
-      await db.command({ ping: 1 });
-      res.json({ status: "ok", database: "connected", message: "Amarena Backend is operational" });
+      if (database) {
+        await database.command({ ping: 1 });
+        return res.json({ status: "ok", database: "connected", mode: process.env.NODE_ENV || "development" });
+      }
+      res.json({ status: "ok", database: "not_connected_yet", mode: process.env.NODE_ENV || "development" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ status: "error", error: message });
+      res.status(500).json({ status: "error", error: String(err) });
     }
   });
 
@@ -262,6 +298,26 @@ async function startServer() {
     }
   });
 
+  // Orders
+  app.get("/api/orders/:id/track", async (req, res) => {
+    try {
+      const db = await getDb();
+      const order = await db.collection("orders").findOne(
+        { _id: new ObjectId(req.params.id) },
+        { projection: { 
+          status: 1, 
+          deliveryLocation: 1, 
+          clientInfo: 1,
+          createdAt: 1
+        }}
+      );
+      if (!order) return res.status(404).json({ error: "Pedido não encontrado" });
+      res.json(order);
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   app.get("/api/admin/orders", authenticateAdmin, async (req, res) => {
     try {
       const db = await getDb();
@@ -275,11 +331,65 @@ async function startServer() {
   app.patch("/api/admin/orders/:id", authenticateAdmin, async (req, res) => {
     try {
       const db = await getDb();
+      const updateFields: any = {};
+      if (req.body.status !== undefined) updateFields.status = req.body.status;
+      if (req.body.archived !== undefined) updateFields.archived = req.body.archived;
+      updateFields.updatedAt = new Date();
+
       await db.collection("orders").updateOne(
         { _id: new ObjectId(req.params.id) },
-        { $set: { status: req.body.status, updatedAt: new Date() } }
+        { $set: updateFields }
       );
-      res.json({ message: "Status atualizado" });
+      res.json({ message: "Pedido atualizado com sucesso" });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post("/api/admin/orders/archive-completed", authenticateAdmin, async (req, res) => {
+    try {
+      const db = await getDb();
+      const result = await db.collection("orders").updateMany(
+        { 
+          status: { $in: ["completed", "cancelled"] },
+          archived: { $ne: true }
+        },
+        { $set: { archived: true, updatedAt: new Date() } }
+      );
+      res.json({ message: "Pedidos arquivados com sucesso", modifiedCount: result.modifiedCount });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.patch("/api/admin/orders/:id/location", authenticateAdmin, async (req, res) => {
+    try {
+      const db = await getDb();
+      const { lat, lng } = req.body;
+      await db.collection("orders").updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { 
+          $set: { 
+            deliveryLocation: { lat, lng, updatedAt: new Date() },
+            status: "shipped" 
+          } 
+        }
+      );
+      res.json({ message: "Localização atualizada" });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/orders/:id/location", async (req, res) => {
+    try {
+      const db = await getDb();
+      const order = await db.collection("orders").findOne(
+        { _id: new ObjectId(req.params.id) },
+        { projection: { deliveryLocation: 1, status: 1 } }
+      );
+      if (!order) return res.status(404).json({ error: "Pedido não encontrado" });
+      res.json(order.deliveryLocation || null);
     } catch (err: unknown) {
       res.status(500).json({ error: String(err) });
     }
@@ -321,6 +431,28 @@ async function startServer() {
     }
   });
 
+  // Daily Closings
+  app.get("/api/daily-closings", authenticateAdmin, async (req, res) => {
+    try {
+      const db = await getDb();
+      const closings = await db.collection("daily_closings").find().sort({ createdAt: -1 }).limit(30).toArray();
+      res.json(closings);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post("/api/daily-closings", authenticateAdmin, async (req, res) => {
+    try {
+      const db = await getDb();
+      const doc = { ...req.body, createdAt: new Date().toISOString() };
+      await db.collection("daily_closings").insertOne(doc);
+      res.json({ message: "Fechamento registrado com sucesso" });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // Mercado Pago
   app.post("/api/payment/create-preference", async (req, res) => {
     try {
@@ -357,20 +489,47 @@ async function startServer() {
 
   // Vite
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      
+      // Ensure 404s are handled as SPA fallback in dev too
+      app.get("*", async (req, res, next) => {
+        const url = req.originalUrl;
+        if (url.startsWith("/api")) return next();
+        
+        try {
+          let template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+          template = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ "Content-Type": "text/html" }).end(template);
+        } catch (e) {
+          vite.ssrFixStacktrace(e as Error);
+          next(e);
+        }
+      });
+    } catch (viteError) {
+      console.warn("Failed to load Vite dev server. This is expected in production if built correctly.", viteError);
+    }
   } else {
-    const distPath = path.join(__dirname, "dist");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+  process.on("SIGINT", () => {
+    console.log("[Amarena] Shutting down...");
+    server.close(() => {
+      if (dbClient) dbClient.close();
+      process.exit(0);
+    });
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("Critical error starting server:", err);
+  process.exit(1);
+});

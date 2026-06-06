@@ -11,7 +11,9 @@
   --color-amarena-dark-red: #96121d;
   --color-amarena-green: #43a447;
   --color-amarena-purple: #822097;
+  --color-amarena-dark-purple: #4c125a;
   --color-amarena-orange: #f5981d;
+  --color-amarena-dark-green: #2d5a27;
   --color-cream: #f8f8f8;
   --color-amarena-dark: #1a1a1a;
   
@@ -20,7 +22,7 @@
 }
 
 body {
-  @apply font-sans bg-white text-amarena-dark antialiased;
+  @apply font-sans text-amarena-dark antialiased;
 }
 
 @layer utilities {
@@ -34,6 +36,13 @@ body {
   }
   .print-only {
     display: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 

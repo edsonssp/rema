@@ -22,41 +22,27 @@ import {
   RefreshCcw,
   LogOut,
   ChevronLeft,
+  ChevronRight,
+  Calculator,
   MapPin,
   Instagram,
   CupSoda,
   Soup,
   Upload,
-  Sliders
+  Sliders,
+  Cherry,
+  Plus,
+  Truck,
+  Star,
+  Search,
+  Archive
 } from 'lucide-react';
 import axios from 'axios';
-
-// --- Types ---
-interface Product {
-  id: string;
-  name: string;
-  category: 'acai' | 'sorvete' | 'milkshake' | 'picole' | 'promos' | 'potes' | 'addon';
-  subcategory?: 'frutas' | 'leite' | 'especial' | 'gourmet';
-  price: number;
-  description: string;
-  image?: string;
-  active?: boolean;
-}
-
-interface Order {
-  id: string;
-  items: { name: string; price: number; quantity: number }[];
-  total: number;
-  paymentMethod: string;
-  status: string;
-  createdAt: string;
-  deliveryFee?: number;
-  clientInfo?: {
-    name: string;
-    phone: string;
-    address: string;
-  };
-}
+import AnimatedBackground from './components/AnimatedBackground';
+import { Confetti } from './components/Confetti';
+import { DeliveryConsole } from './components/DeliveryConsole';
+import { OrderLiveTracker } from './components/OrderLiveTracker';
+import { Product, Order } from './types';
 
 // --- Custom Icons ---
 const AcaiBowlIcon = ({ size = 24 }: { size?: number }) => (
@@ -88,7 +74,18 @@ const PopsicleBittenIcon = ({ size = 24 }: { size?: number }) => (
 
 const Logo = ({ className = "" }: { className?: string; light?: boolean }) => (
   <div className={`flex items-center gap-4 ${className} group cursor-default select-none`}>
-    <div className="w-20 h-20 md:w-28 md:h-28 flex-shrink-0 bg-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.2)] overflow-hidden border-[4px] border-white transform -rotate-6 transition-all group-hover:rotate-0 group-hover:scale-105 z-10">
+    <motion.div 
+      animate={{ 
+        y: [0, -6, 0],
+        rotate: [-6, -3, -6]
+      }}
+      transition={{ 
+        duration: 5, 
+        repeat: Infinity, 
+        ease: "easeInOut" 
+      }}
+      className="w-20 h-20 md:w-28 md:h-28 flex-shrink-0 bg-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(0,0,0,0.2)] overflow-hidden border-[4px] border-white z-10 transition-transform group-hover:scale-105"
+    >
        <div className="relative w-full h-full flex items-center justify-center">
           {/* Official Brand Logo Image */}
           <img 
@@ -99,7 +96,7 @@ const Logo = ({ className = "" }: { className?: string; light?: boolean }) => (
           {/* Clearer glossy overlay */}
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 pointer-events-none" />
        </div>
-    </div>
+    </motion.div>
     <div className="flex-1 text-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
        <h1 className="font-brand text-4xl md:text-5xl leading-none tracking-tight text-white mb-1">Amarena</h1>
        <div className="flex items-center justify-center gap-3">
@@ -231,7 +228,7 @@ const ModernTicket = ({ order, onDismiss }: { order: Order; onDismiss: () => voi
   </motion.div>
 );
 
-const OrderHistory = ({ clientPhone, setCurrentScreen, setCart, setViewingTicket }: { clientPhone: string, setCurrentScreen: (screen: any) => void, setCart: (items: { name: string; price: number; quantity: number }[]) => void, setViewingTicket: (order: Order | null) => void }) => {
+const OrderHistory = ({ clientPhone, clientName, setCurrentScreen, setCart, setViewingTicket }: { clientPhone: string, clientName: string, setCurrentScreen: (screen: any) => void, setCart: (items: { name: string; price: number; quantity: number }[]) => void, setViewingTicket: (order: Order | null) => void }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -271,16 +268,81 @@ const OrderHistory = ({ clientPhone, setCurrentScreen, setCart, setViewingTicket
     }
   };
 
+  const activeOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+  const completedOrdersCount = orders.filter(o => o.status === 'completed').length;
+
   return (
-    <div className="min-h-screen bg-stone-50 pb-20">
-      <div className="bg-amarena-orange p-6 text-white flex items-center gap-4 sticky top-0 z-50 shadow-lg">
-        <button onClick={() => setCurrentScreen('home')} className="p-2 hover:bg-white/20 rounded-xl transition-all">
-          <ChevronLeft />
-        </button>
-        <h2 className="text-xl font-bold tracking-tight">Meus Pedidos</h2>
+    <div className="min-h-screen bg-stone-50 pb-24">
+      <div className="bg-white p-6 text-stone-800 flex items-center justify-between sticky top-0 z-50 border-b border-stone-100 backdrop-blur-md bg-white/90">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setCurrentScreen('home')} className="p-2 hover:bg-stone-100 rounded-xl transition-all">
+            <ChevronLeft />
+          </button>
+          <h2 className="text-xl font-brand tracking-tight">Meus Pedidos</h2>
+        </div>
       </div>
-      
-      <div className="p-4 space-y-6 max-w-lg mx-auto">
+      {/* Horizontal Status Bar / Loyalty Section */}
+      {clientPhone && !loadingHistory && (
+        <div className="relative group">
+          <div className="w-full overflow-x-auto no-scrollbar py-4 flex gap-3 px-6 items-stretch">
+            {/* Card 1: Loyalty Card */}
+            <div className="min-w-[280px] shrink-0">
+              <LoyaltyCard 
+                completedOrders={completedOrdersCount} 
+                clientName={clientName} 
+              />
+            </div>
+
+            {/* Card 2: Status / Active Pedidos */}
+            <div className="min-w-[240px] shrink-0 bg-white rounded-[28px] p-5 border border-stone-100 shadow-premium flex flex-col justify-between">
+              <div>
+                <h4 className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-1">Status Ativo</h4>
+                <p className="text-xl font-brand text-stone-800">
+                  {activeOrders.length > 0 ? `${activeOrders.length} em preparo` : 'Nenhum ativo'}
+                </p>
+              </div>
+              <div className="mt-3 flex -space-x-1.5 min-h-[32px]">
+                {activeOrders.length > 0 ? (
+                  activeOrders.slice(0, 3).map((o, idx) => (
+                    <div key={o.id} className="w-8 h-8 rounded-full bg-amarena-green border-2 border-white flex items-center justify-center text-white text-[9px] font-bold shadow-md" style={{ zIndex: 10 - idx }}>
+                      #{o.id.slice(-3).toUpperCase()}
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center gap-2 text-stone-300">
+                    <IceCream size={16} />
+                    <span className="text-[10px] font-bold">Tudo pronto!</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[9px] font-bold text-stone-400 mt-3 flex items-center gap-1 uppercase tracking-tight">
+                {activeOrders.length > 0 ? 'Acompanhando' : 'Histórico Completo'}
+              </p>
+            </div>
+
+            {/* Card 3: Promo / Gift */}
+            <div className="min-w-[240px] shrink-0 bg-gradient-to-br from-amarena-orange to-amarena-dark-orange rounded-[28px] p-5 text-white shadow-premium flex flex-col justify-between">
+              <div className="bg-white/20 w-8 h-8 rounded-xl flex items-center justify-center mb-3">
+                <Star size={16} className="fill-white" />
+              </div>
+              <div>
+                <p className="font-brand text-lg leading-tight">Brinde Surpresa?</p>
+                <p className="text-[8px] font-bold opacity-80 uppercase tracking-widest mt-1">Complete 10 e peça seu prêmio.</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Visual Hint for Scroll */}
+          <div className="flex justify-center gap-1.5 pb-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-amarena-purple/40" />
+            <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+            <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 pt-0 space-y-6 max-w-lg mx-auto">
+        <h3 className="px-2 text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-2">Histórico de Atividade</h3>
         {loadingHistory ? (
           <div className="flex flex-col items-center py-20 gap-4">
             <div className="w-10 h-10 border-4 border-amarena-orange border-t-transparent rounded-full animate-spin" />
@@ -363,6 +425,12 @@ const OrderHistory = ({ clientPhone, setCurrentScreen, setCart, setViewingTicket
                     </button>
                   </div>
                 </div>
+
+                {order.status === 'shipped' && (
+                  <div className="mt-4 border-t border-stone-100 pt-4">
+                     <OrderLiveTracker orderId={order.id} />
+                  </div>
+                )}
               </div>
             </motion.div>
           ))
@@ -383,24 +451,42 @@ const Awning = () => (
   </div>
 );
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  show: { opacity: 1, y: 0, scale: 1 }
+};
+
 const Button = ({ children, onClick, variant = 'primary', className = '', loading = false, disabled = false }: { children: React.ReactNode, onClick?: () => void, variant?: string, className?: string, loading?: boolean, disabled?: boolean }) => {
   const variants: Record<string, string> = {
-    primary: 'bg-amarena-red text-white hover:bg-amarena-red/90',
-    secondary: 'bg-amarena-green text-white hover:bg-amarena-green/90',
-    purple: 'bg-amarena-purple text-white hover:bg-amarena-purple/90',
-    orange: 'bg-amarena-orange text-white hover:bg-amarena-orange/90',
-    outline: 'border-2 border-stone-200 text-stone-600 hover:bg-stone-50',
+    primary: 'bg-amarena-red text-white hover:bg-amarena-red/90 shadow-lg shadow-amarena-red/20',
+    secondary: 'bg-amarena-green text-white hover:bg-amarena-green/90 shadow-lg shadow-amarena-green/20',
+    purple: 'bg-amarena-purple text-white hover:bg-amarena-purple/90 shadow-lg shadow-amarena-purple/20',
+    orange: 'bg-amarena-orange text-white hover:bg-amarena-orange/90 shadow-lg shadow-amarena-orange/20',
+    outline: 'border-2 border-stone-200 text-stone-600 hover:bg-stone-50 hover:border-stone-300',
     ghost: 'text-stone-400 hover:text-amarena-red transition-colors'
   };
 
   return (
-    <button 
+    <motion.button 
+      whileTap={{ scale: 0.96 }}
+      whileHover={{ scale: 1.02 }}
       onClick={onClick}
       disabled={loading || disabled}
-      className={`px-6 py-3 rounded-2xl font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 ${variants[variant]} ${className} ${loading || disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`px-6 py-3 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 ${variants[variant]} ${className} ${loading || disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {children}
-    </button>
+    </motion.button>
   );
 };
 
@@ -419,8 +505,11 @@ const OrderTicket = ({ order }: { order: Order | null }) => {
         <p className="text-xs uppercase">Data: {new Date(order.createdAt).toLocaleString('pt-BR')}</p>
         {order.clientInfo && (
           <div className="mt-2 pt-2 border-t border-black">
-             <p className="text-xs font-bold uppercase">{order.clientInfo.name}</p>
-             <p className="text-xs uppercase">{order.clientInfo.address}</p>
+             <p className="text-[10px] font-bold uppercase">{order.clientInfo.deliveryType === 'delivery' ? 'ENTREGA' : 'RETIRADA'}</p>
+             <p className="text-sm font-bold uppercase">{order.clientInfo.name}</p>
+             {order.clientInfo.deliveryType === 'delivery' && (
+               <p className="text-sm uppercase font-bold">{order.clientInfo.address}</p>
+             )}
              <p className="text-xs uppercase">Tel: {order.clientInfo.phone}</p>
           </div>
         )}
@@ -456,7 +545,7 @@ const OrderTicket = ({ order }: { order: Order | null }) => {
 };
 
 const SplashScreen = () => (
-  <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center">
+  <div className="fixed inset-0 z-[100] bg-white/90 flex flex-col items-center justify-center backdrop-blur-sm">
     <motion.div 
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -484,6 +573,73 @@ const SplashScreen = () => (
   </div>
 );
 
+// --- Loyalty Card Component ---
+const LoyaltyCard = ({ completedOrders, clientName }: { completedOrders: number, clientName: string }) => {
+  const points = completedOrders % 10;
+  const rewards = Math.floor(completedOrders / 10);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="w-full max-w-sm mx-auto bg-gradient-to-br from-amarena-purple to-amarena-dark-purple p-4 rounded-[28px] shadow-xl relative overflow-hidden border border-white/10"
+    >
+      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+        <Star size={80} className="text-white rotate-12" />
+      </div>
+      
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-white font-brand text-lg">Cartão Fidelidade</h3>
+            <p className="text-white/60 text-[9px] font-black uppercase tracking-widest mt-0.5">Olá, {clientName || 'Cliente Amarena'}</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20">
+            <span className="text-white text-[8px] font-black uppercase tracking-widest">{rewards > 0 ? `${rewards} Brinde(s)` : 'Fidelidade'}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2 mb-4">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div 
+              key={i} 
+              className={`aspect-square rounded-xl flex items-center justify-center border transition-all duration-500 ${
+                i < points 
+                ? 'bg-amarena-red border-white/40 shadow-[0_0_10px_rgba(227,26,42,0.4)]' 
+                : 'bg-white/5 border-white/10'
+              }`}
+            >
+              {i < points ? (
+                <Star size={16} className="text-white fill-white animate-pulse" />
+              ) : (
+                <IceCream size={12} className="text-white/20" />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-between items-end">
+          <div className="flex-1">
+             <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: `${(points / 10) * 100}%` }}
+                   className="h-full bg-amarena-green"
+                />
+             </div>
+             <p className="text-white/50 text-[9px] font-bold mt-1.5">
+               {10 - points} para ganhar!
+             </p>
+          </div>
+          <div className="ml-4 flex flex-col items-end">
+             <p className="text-white font-black text-xl leading-none">{points}<span className="text-xs opacity-50">/10</span></p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // --- App ---
 
 type AppSettings = {
@@ -505,8 +661,12 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings'>('dashboard');
+  const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings' | 'delivery' | 'daily-closing'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
+  const [operatorName, setOperatorName] = useState('');
+  const [ordersTab, setOrdersTab] = useState<'active' | 'completed' | 'archived'>('active');
+  const [ordersSearchTerm, setOrdersSearchTerm] = useState('');
+  const [closings, setClosings] = useState<any[]>([]);
   
   // Promotion State
   const [promoTitle, setPromoTitle] = useState('');
@@ -526,20 +686,39 @@ export default function App() {
   const [pixCopied, setPixCopied] = useState(false);
 
   useEffect(() => {
+    // Direct routing for admin access via URL path
+    if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
+      setCurrentScreen('admin');
+    }
+    
     const registerToken = async () => {
         // Only ask if we haven't successfully registered or been denied in this session
         if (localStorage.getItem('push_registered') === 'true') return;
+
+        // Skip registration if not supported by the browser or if running inside an iframe (like the AI Studio preview environment)
+        const isSupportedField = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+        const inIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+        if (!isSupportedField) {
+            console.info('Push notifications are not supported in this browser.');
+            return;
+        }
+
+        if (inIframe) {
+            console.info('Push notifications are bypassed inside the preview iframe environment.');
+            return;
+        }
         
         try {
-            const token = await getToken(messaging, { vapidKey: 'BM-X5aQ-p0Q-l0x9mS9E5S_e4B0jKx6kH-F-H9mS1Q8-D-H0r_hIu-X74K-iU9O-B3C5uQ8W8G7vL2n7Qy8' });
+            const token = await getToken(messaging, { vapidKey: 'BDJUqJ7PkeBSMALd7QZaRd5Lmvi1gQoUMDW49KPRBV83rLBjVUm3t0Aj4fE-jl5b-4voLAGmUHSEuZiqCTNbGgk' });
             if (token) {
                 await axios.post('/api/push-token', { token });
                 localStorage.setItem('push_registered', 'true');
             }
         } catch (error) {
-            console.error('Error registering for push notifications:', error);
-            // If the user denied, we store that we tried so we don't spam errors
-            if ((error as any).code === 'messaging/permission-blocked') {
+            console.warn('Handling push notifications registration (non-critical):', error);
+            // If the user denied or blocked, we store that we tried so we don't spam
+            if ((error as any).code === 'messaging/permission-blocked' || (error as any).message?.includes('denied')) {
                 localStorage.setItem('push_registered', 'denied');
             }
         }
@@ -549,7 +728,31 @@ export default function App() {
     const timer = setTimeout(registerToken, 2000);
     return () => clearTimeout(timer);
   }, []);
+  // Load initial data from localStorage
+  const savedClientInfo = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('amarena_client_info') || '{}') : {};
+
+  // Checkout detail state
+  const [clientName, setClientName] = useState(savedClientInfo.name || '');
+  const [clientPhone, setClientPhone] = useState(savedClientInfo.phone || '');
+
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
+
+  // Fetch logic for user-specific data
+  const fetchUserOrders = async () => {
+    if (!clientPhone) return;
+    try {
+      const res = await axios.get(`/api/orders/user/${clientPhone}`);
+      setUserOrders(res.data);
+    } catch (err) {
+      console.error("Error fetching user history:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (clientPhone) fetchUserOrders();
+  }, [clientPhone]);
+
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
   const [viewingTicket, setViewingTicket] = useState<Order | null>(null);
 
@@ -566,13 +769,6 @@ export default function App() {
   // Pote Personalizado selection state
   const [selectedTubSize, setSelectedTubSize] = useState<string | null>(null);
   const [tubFlavors, setTubFlavors] = useState(['', '', '']);
-  
-  // Load initial data from localStorage
-  const savedClientInfo = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('amarena_client_info') || '{}') : {};
-
-  // Checkout detail state
-  const [clientName, setClientName] = useState(savedClientInfo.name || '');
-  const [clientPhone, setClientPhone] = useState(savedClientInfo.phone || '');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
   const [address, setAddress] = useState(savedClientInfo.address || '');
   const [addressNumber, setAddressNumber] = useState(savedClientInfo.number || '');
@@ -701,6 +897,17 @@ export default function App() {
     }
   };
 
+  const fetchClosings = async () => {
+    try {
+      const res = await axios.get('/api/daily-closings', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+      });
+      setClosings(res.data);
+    } catch (err) {
+      console.error("Error fetching closings:", err);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -710,10 +917,11 @@ export default function App() {
         const promises = [fetchProducts(), fetchSettings()];
         if (isAdminLoggedIn) {
           promises.push(fetchOrders());
+          promises.push(fetchClosings());
         }
         await Promise.all(promises);
       } finally {
-        setTimeout(() => setIsInitialLoading(false), 800); // Small delay for smooth transition
+        setTimeout(() => setIsInitialLoading(false), 300); // Reduced delay for faster perceived loading
       }
     };
     load();
@@ -721,7 +929,10 @@ export default function App() {
     // Auto-refresh data to keep the store front and admin panel synced
     const intervalId = setInterval(() => {
       fetchProducts();
-      if (isAdminLoggedIn) fetchOrders();
+      if (isAdminLoggedIn) {
+        fetchOrders();
+        fetchClosings();
+      }
     }, 30000); // Every 30 seconds
 
     return () => { 
@@ -890,7 +1101,7 @@ export default function App() {
     switch(currentScreen) {
       case 'home':
         return (
-          <div className="flex flex-col items-center no-print bg-[#fff9f5] min-h-screen">
+          <div className="flex flex-col items-center no-print bg-[#fff9f5]/50 min-h-screen">
       {/* Header */}
       <header className="relative w-full bg-amarena-dark-red pt-8 pb-12 px-6 shadow-[0_10px_30px_rgba(150,18,29,0.3)] mb-8 overflow-visible border-b border-white/5">
         <div className="flex items-start max-w-lg mx-auto relative z-30 w-full">
@@ -1005,11 +1216,21 @@ export default function App() {
                 }
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 w-full px-5 max-w-lg">
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-2 gap-3 w-full px-5 max-w-lg"
+              >
                 {menuItems.map((item) => (
                   <motion.button
+                    variants={itemVariants}
                     key={item.id}
-                    whileHover={{ scale: 1.05 }}
+                    whileHover={{ 
+                      scale: 1.05, 
+                      y: -4,
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)" 
+                    }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       if (item.id === 'whatsapp') {
@@ -1018,7 +1239,7 @@ export default function App() {
                       }
                       setCurrentScreen(item.id as typeof currentScreen);
                     }}
-                    className={`${item.color} p-3 rounded-[20px] shadow-md flex flex-col items-center justify-center gap-1 text-white transition-shadow hover:shadow-lg`}
+                    className={`${item.color} p-3 rounded-[20px] shadow-sm flex flex-col items-center justify-center gap-1 text-white transition-all`}
                   >
                     <div className="bg-white/20 p-2 rounded-xl">
                       {React.cloneElement(item.icon as React.ReactElement, { size: 20 })}
@@ -1026,28 +1247,62 @@ export default function App() {
                     <span className="font-bold text-[11px] tracking-tight text-center">{item.label}</span>
                   </motion.button>
                 ))}
-              </div>
+              </motion.div>
             )}
 
             <div className="w-full px-5 pb-10 mt-10 space-y-3">
-               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4">
+               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4 hover:shadow-md transition-shadow">
                   <div className="bg-red-100 p-3 rounded-2xl text-amarena-red"><MapPin size={20} /></div>
                   <div>
                     <p className="font-bold text-stone-800 text-sm">Rua Dois de Novembro</p>
                     <p className="text-xs text-stone-400">Centro - Passos, MG</p>
                   </div>
                </div>
-               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4">
+               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4 hover:shadow-md transition-shadow">
                   <div className="bg-green-100 p-3 rounded-2xl text-amarena-green"><MessageCircle size={20} /></div>
                   <p className="font-bold text-stone-800 text-sm">Fale conosco no WhatsApp</p>
                </div>
-               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4">
+               <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-100 flex items-center gap-4 hover:shadow-md transition-shadow">
                   <div className="bg-pink-100 p-3 rounded-2xl text-pink-500"><Instagram size={20} /></div>
                   <p className="font-bold text-stone-800 text-sm">@amarena.passos</p>
                </div>
             </div>
 
-            <div className="relative mt-10 mb-10 overflow-hidden rounded-full">
+            <AnimatePresence>
+              {cart.length > 0 && (
+                <motion.div 
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 100, opacity: 0 }}
+                  className="sticky bottom-6 left-0 right-0 px-5 z-40 pointer-events-none"
+                >
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setCurrentScreen('checkout')}
+                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
+                        {cart.length}
+                      </div>
+                      <span className="text-sm">Ver Carrinho</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
+                       <ChevronRight size={20} />
+                    </div>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Admin Access Link Hidden for Privacy - Access via URL /#admin */}
+            <div className="flex flex-col items-center mt-12 gap-4">
+              <div className="h-1 w-1 bg-stone-100 rounded-full opacity-0" />
+            </div>
+
+            <div className="relative mt-4 mb-10 overflow-hidden rounded-full">
               {adminHoldProgress > 0 && (
                 <div 
                   className="absolute inset-0 bg-amarena-red/10 transition-all duration-75"
@@ -1084,17 +1339,27 @@ export default function App() {
                 {menuItems.find(m => m.id === currentScreen)?.label}
               </h2>
               <div className="relative">
-                <button 
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setCurrentScreen('checkout')}
-                  className="bg-amarena-red p-4 rounded-2xl text-white shadow-lg shadow-amarena-red/20 active:scale-95 transition-all"
+                  className="bg-amarena-red p-4 rounded-2xl text-white shadow-lg shadow-amarena-red/20 active:scale-95 transition-all outline-none"
                 >
                   <ShoppingCart size={24} />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-amarena-green text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-sm">
-                      {cart.length}
-                    </span>
-                  )}
-                </button>
+                  <AnimatePresence>
+                    {cart.length > 0 && (
+                      <motion.span 
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        key={cart.length}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        className="absolute -top-2 -right-2 bg-amarena-green text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-sm"
+                      >
+                        {cart.length}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               </div>
             </div>
 
@@ -1128,76 +1393,65 @@ export default function App() {
                     ))}
                   </div>
                 )}
-                {products.filter(p => {
-                  const matchesCategory = currentScreen === 'sorvete' 
-                    ? (p.category === 'sorvete' || p.category === 'potes')
-                    : (p.category === currentScreen);
-                  
-                  const matchesSubcategory = currentScreen === 'picole' 
-                    ? (p.subcategory === currentPicoleSub || (!p.subcategory && currentPicoleSub === 'frutas'))
-                    : true;
-
-                  const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                      p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-                  return matchesCategory && matchesSubcategory && (p.active ?? true) && matchesSearch;
-                }).length === 0 ? (
-                  <div className="py-20 text-center text-stone-400 bg-white/50 rounded-[40px] border border-dashed border-stone-200">
-                    <Package size={48} className="mx-auto mb-4 opacity-10" />
-                    Nenhum produto encontrado.
-                  </div>
-                ) : (
-                  products.filter(p => {
-                    const matchesCategory = currentScreen === 'sorvete' 
-                      ? (p.category === 'sorvete' || p.category === 'potes')
-                      : (p.category === currentScreen);
-                    
-                    const matchesSubcategory = currentScreen === 'picole' 
-                      ? (p.subcategory === currentPicoleSub || (!p.subcategory && currentPicoleSub === 'frutas'))
-                      : true;
-
-                    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                        p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-                    return matchesCategory && matchesSubcategory && (p.active ?? true) && matchesSearch;
-                  }).map(product => (
                   <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    key={product.id} 
-                    className="bg-white p-5 rounded-[32px] shadow-sm border border-stone-100 flex items-center justify-between gap-4 group"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="grid grid-cols-1 gap-5"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-stone-50 rounded-[24px] overflow-hidden flex-shrink-0 border border-stone-50">
-                        {product.image ? (
-                          <img 
-                            src={product.image} 
-                            loading="lazy"
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                            alt={product.name} 
-                            referrerPolicy="no-referrer" 
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-stone-200">
-                            <IceCream size={32} />
+                    {products.filter(p => {
+                      const matchesCategory = currentScreen === 'sorvete' 
+                        ? (p.category === 'sorvete' || p.category === 'potes')
+                        : (p.category === currentScreen);
+                      
+                      const matchesSubcategory = currentScreen === 'picole' 
+                        ? (p.subcategory === currentPicoleSub || (!p.subcategory && currentPicoleSub === 'frutas'))
+                        : true;
+
+                      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                          p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+                      return matchesCategory && matchesSubcategory && (p.active ?? true) && matchesSearch;
+                    }).map(product => (
+                      <motion.div 
+                        variants={itemVariants}
+                        whileHover={{ y: -4, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
+                        key={product.id} 
+                        className="bg-white p-5 rounded-[32px] shadow-sm border border-stone-100 flex items-center justify-between gap-4 group transition-shadow hover:shadow-xl"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-20 bg-stone-50 rounded-[24px] overflow-hidden flex-shrink-0 border border-stone-50">
+                            {product.image ? (
+                              <img 
+                                src={product.image} 
+                                loading="lazy"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                alt={product.name} 
+                                referrerPolicy="no-referrer" 
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-stone-200">
+                                <IceCream size={32} />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-stone-800 text-lg leading-tight mb-1">{product.name}</h3>
-                        <p className="text-amarena-red font-black text-xl">R$ {product.price.toFixed(2)}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="primary" 
-                      className="w-14 h-14 !p-0 rounded-2xl shadow-xl shadow-amarena-red/20 active:scale-90"
-                      onClick={() => {
-                        addToCart({ name: product.name, price: product.price, quantity: 1 });
-                      }}
-                    >
-                      <ShoppingCart size={24} />
-                    </Button>
+                          <div>
+                            <h3 className="font-bold text-stone-800 text-lg leading-tight mb-1">{product.name}</h3>
+                            <p className="text-amarena-red font-black text-xl">R$ {product.price.toFixed(2)}</p>
+                          </div>
+                        </div>
+                        <motion.button 
+                          whileTap={{ scale: 0.9 }}
+                          whileHover={{ scale: 1.1 }}
+                          className="w-14 h-14 flex items-center justify-center bg-amarena-red text-white !p-0 rounded-2xl shadow-xl shadow-amarena-red/20 outline-none"
+                          onClick={() => {
+                            addToCart({ name: product.name, price: product.price, quantity: 1 });
+                          }}
+                        >
+                          <ShoppingCart size={24} />
+                        </motion.button>
+                      </motion.div>
+                    ))}
                   </motion.div>
-                ))
-              )}
             </div>
           </div>
         );
@@ -1717,9 +1971,9 @@ export default function App() {
         }
 
         return (
-          <div className="h-screen flex flex-col md:flex-row bg-stone-50 no-print">
+          <div className="h-screen flex flex-col md:flex-row bg-stone-50/50">
             {/* Sidebar for PC optimization */}
-            <aside className="w-full md:w-64 bg-white border-r border-stone-100 p-6 flex-shrink-0">
+            <aside className="no-print w-full md:w-64 bg-white border-r border-stone-100 p-6 flex-shrink-0">
               <div className="flex items-center gap-3 mb-10">
                 <div className="bg-amarena-red p-2 rounded-xl text-white">
                   <IceCream size={24} />
@@ -1741,6 +1995,20 @@ export default function App() {
                 >
                   <History size={20} />
                   <span className="font-semibold">Pedidos</span>
+                </button>
+                <button 
+                   onClick={() => setAdminSection('daily-closing')}
+                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${adminSection === 'daily-closing' ? 'bg-amarena-red text-white shadow-md shadow-amarena-red/20' : 'text-stone-500 hover:bg-stone-50'}`}
+                >
+                   <Calculator size={20} />
+                   <span className="font-semibold">Fechamento</span>
+                </button>
+                <button 
+                  onClick={() => setAdminSection('delivery')}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${adminSection === 'delivery' ? 'bg-amarena-red text-white shadow-md shadow-amarena-red/20' : 'text-stone-500 hover:bg-stone-50'}`}
+                >
+                  <Truck size={20} />
+                  <span className="font-semibold">Entregas</span>
                 </button>
                 <button 
                   onClick={() => setAdminSection('products')}
@@ -1777,8 +2045,8 @@ export default function App() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 md:p-10">
-              <div className="max-w-4xl mx-auto">
+            <main className="flex-1 overflow-y-auto p-6 md:p-10 print:p-0 print:bg-white">
+              <div className="max-w-7xl mx-auto">
                 {adminSection === 'dashboard' && (
                   <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -1830,47 +2098,336 @@ export default function App() {
                   </div>
                 )}
 
+                {adminSection === 'daily-closing' && (
+                  <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="hidden print:block mb-10 text-center border-b pb-8">
+                       <h1 className="font-brand text-4xl text-amarena-red mb-2 italic">Amarena Sorvetes</h1>
+                       <h2 className="text-xl font-bold uppercase tracking-widest text-stone-800">Relatório de Fechamento de Caixa</h2>
+                       <p className="text-stone-500 mt-2">Data: {new Date().toLocaleDateString('pt-BR')} | Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
+                    </div>
+
+                    <div className="flex justify-between items-center mb-8 no-print">
+                       <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Fechamento de Caixa</h2>
+                       <button 
+                         onClick={() => {
+                           setToast({ message: 'Preparando impressão...', visible: true });
+                           setTimeout(() => {
+                             window.print();
+                             setToast({ message: '', visible: false });
+                           }, 500);
+                         }}
+                         className="flex items-center gap-2 px-6 py-3 bg-stone-800 text-white rounded-2xl font-bold text-sm shadow-xl shadow-stone-200 active:scale-95 transition-all"
+                       >
+                         <Printer size={18} /> Imprimir Relatório
+                       </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                       <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+                          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total em Vendas</p>
+                          <p className="text-3xl font-brand text-amarena-purple">
+                             R$ {orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled').reduce((acc, curr) => acc + curr.total, 0).toFixed(2)}
+                          </p>
+                       </div>
+                       <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+                          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Pedidos Concluídos</p>
+                          <p className="text-3xl font-brand text-amarena-green">
+                             {orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status === 'completed').length}
+                          </p>
+                       </div>
+                       <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+                          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Data de Referência</p>
+                          <p className="text-xl font-bold text-stone-800">
+                             {new Date().toLocaleDateString('pt-BR')}
+                          </p>
+                       </div>
+                    </div>
+
+                    <div className="bg-white rounded-[32px] border border-stone-100 shadow-sm overflow-hidden mb-8">
+                       <div className="p-6 border-b border-stone-50 bg-stone-50/50">
+                          <h3 className="font-bold text-stone-800 uppercase tracking-wider text-xs">Conferência por Meio de Pagamento</h3>
+                       </div>
+                       <div className="p-6 space-y-4">
+                          {(() => {
+                             const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled');
+                             const methods = {
+                                'DELIVERY_PAYMENT': { label: 'Pagamento na Entrega', total: 0 },
+                                'PIX': { label: 'PIX (Online/Manual)', total: 0 },
+                                'CARD': { label: 'Cartão Online', total: 0 },
+                                'OUTROS': { label: 'Outros', total: 0 }
+                             };
+
+                             todayOrders.forEach(o => {
+                                const m = o.paymentMethod?.toUpperCase();
+                                if (m?.includes('DELIVERY')) methods.DELIVERY_PAYMENT.total += o.total;
+                                else if (m?.includes('PIX')) methods.PIX.total += o.total;
+                                else if (m?.includes('CARD')) methods.CARD.total += o.total;
+                                else methods.OUTROS.total += o.total;
+                             });
+
+                             return Object.values(methods).map(m => (
+                                <div key={m.label} className="flex justify-between items-center p-4 bg-stone-50 rounded-2xl">
+                                   <span className="font-bold text-stone-600">{m.label}</span>
+                                   <span className="font-black text-stone-800 text-lg">R$ {m.total.toFixed(2)}</span>
+                                </div>
+                             ));
+                          })()}
+                       </div>
+                    </div>
+
+                    <div className="bg-amarena-purple/5 border border-amarena-purple/10 p-8 rounded-[32px] no-print">
+                       <h3 className="font-bold text-amarena-purple mb-4 flex items-center gap-2">
+                          <Edit size={18} /> Validar Expediente
+                       </h3>
+                       <div className="space-y-4 max-w-md">
+                          <div>
+                             <label className="text-[10px] font-black text-amarena-purple/50 uppercase tracking-widest ml-1">Responsável pelo Caixa</label>
+                             <input 
+                               type="text" 
+                               value={operatorName}
+                               onChange={e => setOperatorName(e.target.value)}
+                               className="w-full p-4 bg-white border-2 border-amarena-purple/10 rounded-2xl outline-none focus:border-amarena-purple/40 transition-all font-bold text-amarena-purple"
+                               placeholder="Digite o nome do operador..."
+                             />
+                          </div>
+                          <button 
+                            disabled={!operatorName}
+                            onClick={async () => {
+                               try {
+                                 const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled');
+                                 const methods = {
+                                    'deliveryPayment': 0,
+                                    'pix': 0,
+                                    'card': 0,
+                                    'others': 0
+                                 };
+
+                                 todayOrders.forEach(o => {
+                                    const m = o.paymentMethod?.toUpperCase();
+                                    if (m?.includes('DELIVERY')) methods.deliveryPayment += o.total;
+                                    else if (m?.includes('PIX')) methods.pix += o.total;
+                                    else if (m?.includes('CARD')) methods.card += o.total;
+                                    else methods.others += o.total;
+                                 });
+
+                                 const closingData = {
+                                   date: new Date().toISOString(),
+                                   operator: operatorName,
+                                   totalSales: todayOrders.reduce((acc, curr) => acc + curr.total, 0),
+                                   completedOrdersCount: todayOrders.filter(o => o.status === 'completed').length,
+                                   paymentMethods: methods
+                                 };
+
+                                 await axios.post('/api/daily-closings', closingData, {
+                                   headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+                                 });
+
+                                 setToast({ message: 'Conferência Registrada!', visible: true });
+                                 setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                                 fetchClosings();
+                                 setOperatorName('');
+                               } catch (err) {
+                                 console.error("Erro ao salvar fechamento:", err);
+                                 alert("Erro ao registrar conferência.");
+                               }
+                            }}
+                            className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all ${operatorName ? 'bg-amarena-purple text-white shadow-xl shadow-amarena-purple/30' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}
+                          >
+                             Finalizar Conferência do Dia
+                          </button>
+                       </div>
+                    </div>
+
+                    {/* History */}
+                    {closings.length > 0 && (
+                      <div className="mt-12 no-print">
+                         <h3 className="text-xl font-bold text-stone-800 mb-6 uppercase tracking-tight">Últimos Fechamentos</h3>
+                         <div className="space-y-4">
+                            {closings.map((c: any) => (
+                               <div key={c._id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-all">
+                                  <div className="flex items-center gap-4">
+                                     <div className="w-12 h-12 bg-stone-100 rounded-2xl flex items-center justify-center text-stone-400">
+                                        <History size={20} />
+                                     </div>
+                                     <div>
+                                        <p className="text-xs font-black text-stone-300 uppercase tracking-widest">{new Date(c.date).toLocaleDateString('pt-BR')}</p>
+                                        <p className="font-bold text-stone-800">Conferido por: {c.operator}</p>
+                                     </div>
+                                  </div>
+                                  <div className="flex items-center gap-8">
+                                     <div className="text-right">
+                                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Vendas</p>
+                                        <p className="font-brand text-amarena-purple text-xl">R$ {c.totalSales.toFixed(2)}</p>
+                                     </div>
+                                     <div className="text-right">
+                                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Pedidos</p>
+                                        <p className="font-bold text-stone-800">{c.completedOrdersCount}</p>
+                                     </div>
+                                  </div>
+                               </div>
+                            ))}
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {adminSection === 'delivery' && (
+                  <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                    <DeliveryConsole onBack={() => setAdminSection('dashboard')} />
+                  </div>
+                )}
+
                 {adminSection === 'orders' && (
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="flex justify-between items-center mb-8">
-                      <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Gerenciar Pedidos</h2>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={async () => {
-                            const activeOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'completed');
-                            if (activeOrders.length === 0) return alert("Não há pedidos ativos para limpar.");
-                            if (!confirm("Isso irá marcar TODOS os pedidos pendentes como 'Cancelados' para limpar sua tela. Deseja continuar?")) return;
-                            
-                            setLoading(true);
-                            try {
-                              for (const order of activeOrders) {
-                                await axios.patch(`/api/admin/orders/${order.id}`, { status: 'cancelled' }, {
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                      <div>
+                        <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Gerenciar Pedidos</h2>
+                        <p className="text-xs text-stone-500 mt-1">Arquive pedidos finalizados para limpar sua tela sem deletá-los.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {ordersTab === 'active' && orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled').length > 0 && (
+                          <button 
+                            onClick={async () => {
+                              const activeOrders = orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled');
+                              if (activeOrders.length === 0) return alert("Não há pedidos ativos para limpar.");
+                              if (!confirm("Isso irá marcar TODOS os pedidos pendentes como 'Cancelados' para limpar sua tela de ativos. Deseja continuar?")) return;
+                              
+                              setLoading(true);
+                              try {
+                                for (const order of activeOrders) {
+                                  await axios.patch(`/api/admin/orders/${order.id}`, { status: 'cancelled' }, {
+                                    headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+                                  });
+                                }
+                                fetchOrders();
+                                alert("Pedidos limpos com sucesso!");
+                              } catch (err) {
+                                alert("Erro ao limpar alguns pedidos.");
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all font-bold text-xs"
+                          >
+                            <Trash2 size={16} /> Cancelar Pedidos de Teste
+                          </button>
+                        )}
+
+                        {ordersTab === 'completed' && orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled')).length > 0 && (
+                          <button 
+                            onClick={async () => {
+                              if (!confirm("Deseja realmente arquivar todos os pedidos finalizados e cancelados para limpar a tela? Eles ainda poderão ser buscados na aba Histórico.")) return;
+                              
+                              setLoading(true);
+                              try {
+                                await axios.post('/api/admin/orders/archive-completed', {}, {
                                   headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
                                 });
+                                fetchOrders();
+                                setToast({ message: "Pedidos arquivados com sucesso!", visible: true });
+                                setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                              } catch (err) {
+                                alert("Erro ao arquivar pedidos.");
+                              } finally {
+                                setLoading(false);
                               }
-                              fetchOrders();
-                              alert("Pedidos limpos com sucesso!");
-                            } catch (err) {
-                              alert("Erro ao limpar alguns pedidos.");
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all font-bold text-xs"
-                        >
-                          <Trash2 size={16} /> Limpar Pedidos de Teste
-                        </button>
-                        <button onClick={fetchOrders} className="p-2 bg-stone-100 rounded-xl text-stone-500 hover:bg-stone-200 transition-colors">
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 text-amarena-purple rounded-xl hover:bg-purple-100 transition-all font-bold text-xs"
+                          >
+                            <Archive size={16} /> Arquivar Todos Concluídos
+                          </button>
+                        )}
+
+                        <button onClick={fetchOrders} className="p-2.5 bg-stone-100 rounded-xl text-stone-500 hover:bg-stone-200 transition-colors" title="Atualizar Pedidos">
                           <History size={18} />
                         </button>
                       </div>
                     </div>
 
+                    {/* Navigation Tabs */}
+                    <div className="flex bg-stone-100 p-1.5 rounded-[20px] mb-8 gap-1 w-full max-w-lg">
+                      <button
+                        onClick={() => { setOrdersTab('active'); setOrdersSearchTerm(''); }}
+                        className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'active' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                      >
+                        Ativos ({orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled').length})
+                      </button>
+                      <button
+                        onClick={() => { setOrdersTab('completed'); setOrdersSearchTerm(''); }}
+                        className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'completed' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                      >
+                        Concluídos ({orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled')).length})
+                      </button>
+                      <button
+                        onClick={() => { setOrdersTab('archived'); setOrdersSearchTerm(''); }}
+                        className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'archived' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                      >
+                        Histórico / Busca
+                      </button>
+                    </div>
+
+                    {/* Search Field for Archive */}
+                    {ordersTab === 'archived' && (
+                      <div className="mb-6 relative">
+                        <input 
+                          type="text" 
+                          placeholder="Buscar por nome, telefone, nº do pedido, produto ou valor..."
+                          className="w-full pl-12 pr-4 py-3 bg-stone-50 rounded-2xl border border-stone-100 focus:border-amarena-purple/50 focus:bg-white outline-none text-stone-800 placeholder-stone-400 transition-all font-semibold text-sm"
+                          value={ordersSearchTerm}
+                          onChange={e => setOrdersSearchTerm(e.target.value)}
+                        />
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                        {ordersSearchTerm && (
+                          <button 
+                            onClick={() => setOrdersSearchTerm('')} 
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-stone-400 hover:text-stone-600"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Master Orders List */}
                     <div className="space-y-4">
-                      {orders.filter(o => o.status !== 'cancelled').length === 0 ? (
-                        <div className="py-20 text-center text-stone-400 bg-white rounded-3xl border border-dashed border-stone-200">Nenhum pedido recebido ainda.</div>
-                      ) : (
-                        orders.filter(o => o.status !== 'cancelled').map(order => (
+                      {(() => {
+                        const activeList = orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled');
+                        const completedList = orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled'));
+                        const archivedList = orders.filter(o => {
+                          if (!ordersSearchTerm) {
+                            return o.archived === true;
+                          }
+                          const term = ordersSearchTerm.toLowerCase();
+                          const idMatch = o.id?.toLowerCase().includes(term);
+                          const nameMatch = o.clientInfo?.name?.toLowerCase().includes(term);
+                          const phoneMatch = o.clientInfo?.phone?.toLowerCase().includes(term);
+                          const addressMatch = o.clientInfo?.address?.toLowerCase().includes(term);
+                          const valueMatch = o.total?.toString().includes(term);
+                          const itemsMatch = o.items?.some(it => it.name?.toLowerCase().includes(term));
+                          const paymentMatch = o.paymentMethod?.toLowerCase().includes(term);
+                          const statusMatch = o.status?.toLowerCase().includes(term);
+                          
+                          return idMatch || nameMatch || phoneMatch || addressMatch || valueMatch || itemsMatch || paymentMatch || statusMatch;
+                        });
+
+                        const currentList = ordersTab === 'active' 
+                          ? activeList 
+                          : ordersTab === 'completed' 
+                            ? completedList 
+                            : archivedList;
+
+                        if (currentList.length === 0) {
+                          return (
+                            <div className="py-20 text-center text-stone-400 bg-white rounded-3xl border border-dashed border-stone-200">
+                              {ordersTab === 'active' && "Nenhum pedido ativo no momento."}
+                              {ordersTab === 'completed' && "Não há pedidos concluídos ou cancelados hoje para arquivar."}
+                              {ordersTab === 'archived' && (ordersSearchTerm ? "Nenhum pedido encontrado para a sua busca." : "Nenhum pedido arquivado ainda.")}
+                            </div>
+                          );
+                        }
+
+                        return currentList.map(order => (
                           <div key={order.id} className="bg-white p-6 rounded-[32px] shadow-sm border border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div>
                               <div className="flex items-center gap-3 mb-2">
@@ -1878,14 +2435,23 @@ export default function App() {
                                   order.status === 'pending' ? 'bg-orange-100 text-orange-600' : 
                                   order.status === 'preparing' ? 'bg-blue-100 text-blue-600' :
                                   order.status === 'shipped' ? 'bg-purple-100 text-purple-600' :
+                                  order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
                                   'bg-green-100 text-green-600'
                                 }`}>
                                   {order.status === 'pending' ? 'Pendente' : 
                                    order.status === 'preparing' ? 'Preparando' :
                                    order.status === 'shipped' ? 'Em Entrega' :
+                                   order.status === 'cancelled' ? 'Cancelado' :
                                    'Finalizado'}
                                 </span>
-                                <span className="text-stone-400 text-xs font-medium">#{order.id.slice(-6)} • {new Date(order.createdAt).toLocaleTimeString('pt-BR')}</span>
+                                {order.archived && (
+                                  <span className="px-3 py-1 bg-stone-100 text-stone-500 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                                    Arquivado
+                                  </span>
+                                )}
+                                <span className="text-stone-400 text-xs font-medium">
+                                  #{order.id.slice(-6)} • {new Date(order.createdAt).toLocaleDateString('pt-BR')} - {new Date(order.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
+                                </span>
                               </div>
                               <div className="space-y-1">
                                 {order.items.map((it, idx) => (
@@ -1898,6 +2464,23 @@ export default function App() {
                                  order.paymentMethod === 'delivery_payment' ? 'Pagar na Entrega' :
                                  order.paymentMethod} • R$ {order.total.toFixed(2)}
                               </p>
+                              {order.clientInfo && (
+                                <div className="mt-3 flex items-start gap-2 bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                                   <MapPin size={16} className="text-amarena-red mt-0.5 flex-shrink-0" />
+                                   <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-xs font-black text-stone-800 uppercase tracking-wide">{order.clientInfo.name}</p>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${order.clientInfo.deliveryType === 'delivery' ? 'bg-amarena-red text-white' : 'bg-stone-200 text-stone-600'}`}>
+                                          {order.clientInfo.deliveryType === 'delivery' ? 'ENTREGA' : 'RETIRADA'}
+                                        </span>
+                                      </div>
+                                      {order.clientInfo.deliveryType === 'delivery' && (
+                                        <p className="text-xs font-medium text-stone-600 leading-normal mt-0.5">{order.clientInfo.address}</p>
+                                      )}
+                                      <p className="text-[10px] font-bold text-amarena-green mt-1">Tel: {order.clientInfo.phone}</p>
+                                   </div>
+                                </div>
+                              )}
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               {/* Flow: Pending -> Preparing -> Shipped -> Completed */}
@@ -1909,7 +2492,7 @@ export default function App() {
                                     });
                                     fetchOrders();
                                   }}
-                                  className="flex-1 md:flex-none p-4 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition-all font-bold flex items-center justify-center gap-2"
+                                  className="flex-1 md:flex-none p-4 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition-all font-bold flex items-center justify-center gap-2 text-sm"
                                 >
                                   <Package size={20} /> Preparar
                                 </button>
@@ -1922,7 +2505,7 @@ export default function App() {
                                     });
                                     fetchOrders();
                                   }}
-                                  className="flex-1 md:flex-none p-4 bg-purple-500 text-white rounded-2xl hover:bg-purple-600 transition-all font-bold flex items-center justify-center gap-2"
+                                  className="flex-1 md:flex-none p-4 bg-purple-500 text-white rounded-2xl hover:bg-purple-600 transition-all font-bold flex items-center justify-center gap-2 text-sm"
                                 >
                                   <MapPin size={20} /> Saiu para Entrega
                                 </button>
@@ -1935,7 +2518,7 @@ export default function App() {
                                     });
                                     fetchOrders();
                                   }}
-                                  className="flex-1 md:flex-none p-4 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all font-bold flex items-center justify-center gap-2"
+                                  className="flex-1 md:flex-none p-4 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-all font-bold flex items-center justify-center gap-2 text-sm"
                                 >
                                   <Check size={20} /> Entregue
                                 </button>
@@ -1949,21 +2532,65 @@ export default function App() {
                                     });
                                     fetchOrders();
                                   }}
-                                  className="flex-1 md:flex-none p-4 bg-red-100 text-red-600 rounded-2xl hover:bg-red-200 transition-all font-bold flex items-center justify-center gap-2"
+                                  className="flex-1 md:flex-none p-4 bg-red-100 text-red-600 rounded-2xl hover:bg-red-200 transition-all font-bold flex items-center justify-center gap-2 text-sm"
                                 >
                                   <X size={20} /> Cancelar
                                 </button>
                               )}
+                              {(order.status === 'completed' || order.status === 'cancelled') && !order.archived && (
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      setLoading(true);
+                                      await axios.patch(`/api/admin/orders/${order.id}`, { archived: true }, {
+                                        headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+                                      });
+                                      fetchOrders();
+                                      setToast({ message: "Pedido arquivado com sucesso!", visible: true });
+                                      setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                                    } catch (err) {
+                                      alert("Erro ao arquivar pedido.");
+                                    } finally {
+                                      setLoading(false);
+                                    }
+                                  }}
+                                  className="flex-1 md:flex-none p-4 bg-purple-50 text-amarena-purple rounded-2xl hover:bg-purple-100 transition-all font-bold flex items-center justify-center gap-2 text-sm"
+                                >
+                                  <Archive size={20} /> Arquivar
+                                </button>
+                              )}
+                              {order.archived && (
+                                <button 
+                                  onClick={async () => {
+                                    try {
+                                      setLoading(true);
+                                      await axios.patch(`/api/admin/orders/${order.id}`, { archived: false }, {
+                                        headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+                                      });
+                                      fetchOrders();
+                                      setToast({ message: "Pedido restaurado!", visible: true });
+                                      setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                                    } catch (err) {
+                                      alert("Erro ao restaurar pedido.");
+                                    } finally {
+                                      setLoading(false);
+                                    }
+                                  }}
+                                  className="flex-1 md:flex-none p-4 bg-stone-100 text-stone-600 rounded-2xl hover:bg-stone-200 transition-all font-bold flex items-center justify-center gap-2 text-sm"
+                                >
+                                  <RefreshCcw size={20} /> Desarquivar
+                                </button>
+                              )}
                               <button 
                                 onClick={() => handlePrint(order)}
-                                className="flex-1 md:flex-none p-4 bg-stone-800 text-white rounded-2xl hover:bg-black transition-all font-bold flex items-center justify-center gap-2"
+                                className="flex-1 md:flex-none p-4 bg-stone-800 text-white rounded-2xl hover:bg-black transition-all font-bold flex items-center justify-center gap-2 text-sm"
                               >
                                 <Printer size={20} /> Imprimir
                               </button>
                             </div>
                           </div>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
@@ -2172,7 +2799,7 @@ export default function App() {
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                     <h2 className="text-3xl font-display font-bold text-stone-800 mb-8 uppercase tracking-tight">Gerenciar Produtos</h2>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                       <div className="lg:col-span-4 bg-white p-6 rounded-[32px] shadow-sm border border-stone-100 h-fit sticky top-6">
+                       <div className="lg:col-span-3 bg-white p-6 rounded-[32px] shadow-sm border border-stone-100 h-fit sticky top-6">
                           <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                              {editingProduct?.id ? <Edit size={20} className="text-amarena-red" /> : <Package size={20} className="text-amarena-red" />}
                              {editingProduct?.id ? 'Editar Produto' : 'Novo Produto'}
@@ -2208,7 +2835,7 @@ export default function App() {
                                          cat === 'milkshake' ? 'Milkshake' :
                                          cat === 'potePersonalizado' ? 'Monte seu Pote' :
                                          cat === 'addon' ? 'Adicional' :
-                                         cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                         (cat as string).charAt(0).toUpperCase() + (cat as string).slice(1)}
                                       </option>
                                     ))}
                                   </select>
@@ -2319,7 +2946,7 @@ export default function App() {
                           </form>
                        </div>
 
-                       <div className="lg:col-span-8 space-y-4">
+                       <div className="lg:col-span-9 space-y-4">
                           <div className="bg-white rounded-[32px] border border-stone-100 overflow-x-auto shadow-sm">
                              <table className="w-full text-left">
                                 <thead className="bg-stone-50 border-b border-stone-100 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
@@ -2363,7 +2990,7 @@ export default function App() {
                                                 p.category === 'milkshake' ? 'Milkshake' :
                                                 p.category === 'potePersonalizado' ? 'Monte seu Pote' :
                                                 p.category === 'addon' ? 'Adicional' :
-                                                (p.category?.charAt(0).toUpperCase() + p.category?.slice(1)) || 'Sem categoria'}
+                                                ((p.category as any)?.charAt(0).toUpperCase() + (p.category as any)?.slice(1)) || 'Sem categoria'}
                                             </span>
                                           </td>
                                           <td className="px-6 py-4 font-bold text-stone-700">R$ {p.price.toFixed(2)}</td>
@@ -2451,6 +3078,7 @@ export default function App() {
               }
             });
             setLastOrderId(res.data.id);
+            fetchUserOrders();
             setCurrentScreen('success');
             setCart([]);
             setSelectedSize(null);
@@ -2606,22 +3234,81 @@ export default function App() {
 
       case 'success':
         return (
-          <div className="px-6 py-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-500 no-print">
-            <div className="bg-green-100 p-8 rounded-full mb-8 text-green-500 shadow-inner">
-              <Check size={64} />
+          <div className="px-6 py-10 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-700 min-h-screen bg-white">
+            <div className="w-32 h-32 bg-amarena-green/10 rounded-full flex items-center justify-center mb-8 relative">
+               <motion.div 
+                 initial={{ scale: 0 }}
+                 animate={{ scale: 1 }}
+                 transition={{ type: "spring", damping: 12 }}
+                 className="bg-amarena-green p-6 rounded-full text-white shadow-xl shadow-amarena-green/20"
+               >
+                 <Check size={48} strokeWidth={4} />
+               </motion.div>
+               
+               {/* Ripple effect */}
+               <motion.div 
+                 initial={{ scale: 0.8, opacity: 0.5 }}
+                 animate={{ scale: 1.5, opacity: 0 }}
+                 transition={{ repeat: Infinity, duration: 1.5 }}
+                 className="absolute inset-0 bg-amarena-green rounded-full"
+               />
             </div>
-            <h2 className="text-3xl font-display font-bold text-stone-800 mb-4 uppercase tracking-tight">Pedido Recebido!</h2>
-            <p className="text-stone-500 mb-10 max-w-xs">Nossa equipe já está preparando sua delícia. Você será notificado quando estiver pronto.</p>
-            <div className="bg-stone-100 px-6 py-3 rounded-2xl mb-8">
-               <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Senha do Pedido</p>
-               <p className="text-2xl font-display font-bold text-stone-800">{String(lastOrderId).slice(-4).toUpperCase()}</p>
+            
+            <h2 className="text-4xl font-brand text-stone-800 mb-4">Pedido Recebido!</h2>
+            <p className="text-stone-500 mb-8 max-w-xs leading-relaxed">Nossa equipe já está preparando sua delícia artesanal. Você será notificado quando estiver pronto.</p>
+            
+            {/* Loyalty Micro-feedback */}
+            {clientPhone && (
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="w-full max-w-sm mb-8"
+              >
+                <div className="bg-stone-50 p-6 rounded-[32px] border border-stone-100 flex items-center gap-4">
+                   <div className="w-12 h-12 bg-amarena-red rounded-2xl flex items-center justify-center text-white shadow-lg">
+                      <Star size={24} className="fill-white" />
+                   </div>
+                   <div className="text-left">
+                      <p className="text-xs font-black text-stone-400 uppercase tracking-widest leading-none mb-1">Fidelidade Amarena</p>
+                      <p className="text-sm font-bold text-stone-800">Você ganhou +1 ponto hoje!</p>
+                      <div className="flex gap-1 mt-2">
+                         {Array.from({ length: 10 }).map((_, i) => (
+                           <div key={i} className={`h-1 flex-1 rounded-full ${i < ((userOrders.filter(o => o.status === 'completed').length + 1) % 10 || 10) ? 'bg-amarena-red' : 'bg-stone-200'}`} />
+                         ))}
+                      </div>
+                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="bg-stone-100 px-8 py-4 rounded-[28px] mb-8 border border-stone-200/50">
+               <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-1">Acompanhe pelo ID</p>
+               <p className="text-3xl font-brand text-stone-800">#{String(lastOrderId).slice(-4).toUpperCase()}</p>
             </div>
-            <Button onClick={() => setCurrentScreen('home')} variant="outline" className="w-full">Voltar ao Menu</Button>
+
+            {lastOrderId && (
+              <div className="w-full max-w-sm">
+                <OrderLiveTracker orderId={lastOrderId} />
+              </div>
+            )}
+
+            <div className="w-full mt-10 max-w-sm">
+              <Button onClick={() => setCurrentScreen('home')} variant="orange" className="w-full h-14 rounded-2xl shadow-xl shadow-amarena-orange/20">
+                Voltar à Página Inicial
+              </Button>
+              <button 
+                onClick={() => setCurrentScreen('history')}
+                className="mt-4 text-[10px] font-black text-stone-400 uppercase tracking-widest hover:text-amarena-red transition-colors flex items-center justify-center gap-2 w-full"
+              >
+                <History size={14} /> Ver histórico completo
+              </button>
+            </div>
           </div>
         );
 
       case 'history': {
-        return <OrderHistory clientPhone={clientPhone} setCurrentScreen={setCurrentScreen} setCart={setCart} setViewingTicket={setViewingTicket} />;
+        return <OrderHistory clientPhone={clientPhone} clientName={clientName} setCurrentScreen={setCurrentScreen} setCart={setCart} setViewingTicket={setViewingTicket} />;
       }
 
       default:
@@ -2639,19 +3326,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center font-sans selection:bg-primary/20 selection:text-primary">
+    <div className="min-h-screen flex items-center justify-center font-sans selection:bg-primary/20 selection:text-primary">
+      {currentScreen === 'success' && <Confetti />}
       <AnimatePresence>
         {isInitialLoading && <motion.div exit={{ opacity: 0 }} transition={{ duration: 0.5 }}><SplashScreen /></motion.div>}
       </AnimatePresence>
-      {/* Background Decorative Pattern */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] overflow-hidden no-print">
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary blur-3xl" />
-        <div className="absolute top-1/2 -right-48 w-[600px] h-[600px] rounded-full bg-secondary blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-accent blur-3xl opacity-50" />
-      </div>
-
+      
+      {/* Dynamic Animated Background Moved inside container */}
+      
       {/* Actual App Container */}
-      <div className={`w-full ${currentScreen === 'admin' ? 'h-screen' : 'max-w-2xl min-h-screen relative'} bg-cream/50 backdrop-blur-[2px] shadow-2xl relative overflow-x-hidden transition-all duration-500 border-x border-amarena/5`}>
+      <div className={`w-full ${currentScreen === 'admin' ? 'h-screen' : 'max-w-2xl min-h-screen relative'} bg-white/15 backdrop-blur-[2px] shadow-premium relative overflow-x-hidden transition-all duration-500 border-x border-amarena/10 z-10`}>
+        <AnimatedBackground />
         <AnimatePresence mode="wait">
           <motion.div
             key={currentScreen + (isAdminLoggedIn ? adminSection : '')}
