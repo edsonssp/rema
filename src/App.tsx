@@ -647,55 +647,59 @@ const DailyClosingTicket = ({ orders, operatorName }: { orders: Order[], operato
   
   const methods = {
     'delivery_payment': { label: 'DINHEIRO/ENTREGA', total: 0 },
-    'pix': { label: 'PIX', total: 0 },
-    'card': { label: 'CARTÃO VIA APP', total: 0 },
+    'pix': { label: 'PIX (MANUAL/APP)', total: 0 },
+    'card': { label: 'CARTÃO (APP)', total: 0 },
     'others': { label: 'OUTROS', total: 0 }
   };
 
   todayOrders.forEach(o => {
-    const m = o.paymentMethod?.toLowerCase();
-    if (m?.includes('delivery')) methods.delivery_payment.total += o.total;
-    else if (m?.includes('pix')) methods.pix.total += o.total;
-    else if (m?.includes('card')) methods.card.total += o.total;
+    const m = o.paymentMethod?.toLowerCase() || '';
+    if (m.includes('entrega')) methods.delivery_payment.total += o.total;
+    else if (m.includes('pix')) methods.pix.total += o.total;
+    else if (m.includes('card') || m.includes('mercado')) methods.card.total += o.total;
     else methods.others.total += o.total;
   });
 
   return (
-    <div className="print-only p-4 text-black font-mono w-[80mm] mx-auto bg-white text-[12px]">
-      <div className="text-center border-b-2 border-black pb-2 mb-4">
-        <h2 className="text-lg font-bold uppercase">Amarena Sorvetes</h2>
+    <div className="print-only p-4 text-black font-mono w-[80mm] mx-auto bg-white text-[12px] leading-tight">
+      <div className="text-center border-b border-dashed border-black pb-3 mb-3">
+        <h2 className="text-lg font-bold uppercase tracking-tighter">Amarena Sorvetes</h2>
         <p className="font-bold">FECHAMENTO DE CAIXA</p>
-        <p>--------------------------------</p>
+        <p className="text-[10px]">------------------------------------------</p>
         <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
         <p>Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
       </div>
 
       <div className="mb-4">
-        <p className="font-bold uppercase">Operador: {operatorName || 'Não informado'}</p>
-        <p>--------------------------------</p>
+        <p className="font-bold uppercase mb-1">OPERADOR: {operatorName || 'Admin'}</p>
+        <p className="text-[10px]">------------------------------------------</p>
       </div>
 
       <div className="mb-4">
-        <p className="font-bold uppercase text-sm mb-1">Resumo Financeiro</p>
-        {Object.values(methods).filter(m => m.total > 0).map(m => (
+        <p className="font-bold uppercase text-[11px] mb-2 border-b border-dashed border-black pb-1 inline-block">RESUMO POR PAGAMENTO</p>
+        {Object.values(methods).filter(m => m.total > 0 || m.label === 'TOTAL GERAL').map(m => (
           <div key={m.label} className="flex justify-between items-center mb-1">
-             <span className="uppercase">{m.label}</span>
+             <span className="uppercase text-[11px]">{m.label}</span>
              <span className="font-bold">R$ {m.total.toFixed(2)}</span>
           </div>
         ))}
       </div>
 
-      <div className="border-t-2 border-black pt-2 mb-4">
-        <div className="flex justify-between font-bold text-base">
-          <span>TOTAL GERAL</span>
+      <div className="border-t border-dashed border-black pt-2 mb-4">
+        <div className="flex justify-between font-bold text-[14px] mt-1">
+          <span>TOTAL BRUTO</span>
           <span>R$ {total.toFixed(2)}</span>
         </div>
-        <p>Total de Pedidos: {todayOrders.length}</p>
+        <div className="flex justify-between text-[11px] mt-1">
+          <span>PEDIDOS HOJE</span>
+          <span>{todayOrders.length}</span>
+        </div>
       </div>
 
-      <div className="text-center mt-6 text-[10px] uppercase">
-        <p>Relatório Gerencial</p>
-        <p>Amarena Premium Software</p>
+      <div className="text-center mt-6 pt-4 border-t border-dashed border-black">
+        <p className="text-[10px] uppercase font-bold">Relatório Gerencial</p>
+        <p className="text-[9px]">Amarena Premium Software</p>
+        <p className="text-[8px] mt-2">© {new Date().getFullYear()} - Todos os direitos reservados</p>
       </div>
     </div>
   );
