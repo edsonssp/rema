@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'motion/react';
-import { Truck, MapPin, CheckCircle, Navigation, Phone, Clock, ChevronRight } from 'lucide-react';
+import { Truck, MapPin, CheckCircle, Navigation, Phone, Clock, ChevronRight, Map as MapIcon } from 'lucide-react';
 import { Order } from '../types';
+import { OrderLiveTracker } from './OrderLiveTracker';
 
 interface DeliveryConsoleProps {
   onBack: () => void;
@@ -157,6 +158,12 @@ export const DeliveryConsole: React.FC<DeliveryConsoleProps> = ({ onBack }) => {
                     <p className="text-xs font-medium">Pedido feito em: {new Date(order.createdAt).toLocaleTimeString()}</p>
                   </div>
                 </div>
+
+                {activeTrackingId === order.id && (
+                  <div className="mb-6 animate-in fade-in zoom-in duration-500">
+                    <OrderLiveTracker orderId={order.id} />
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   {order.status === 'confirmed' ? (

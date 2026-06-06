@@ -667,6 +667,10 @@ export default function App() {
   const [ordersTab, setOrdersTab] = useState<'active' | 'completed' | 'archived'>('active');
   const [ordersSearchTerm, setOrdersSearchTerm] = useState('');
   const [closings, setClosings] = useState<any[]>([]);
+  const [publicTrackingOrderId, setPublicTrackingOrderId] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [databaseConnected, setDatabaseConnected] = useState<boolean | null>(null);
   
   // Promotion State
   const [promoTitle, setPromoTitle] = useState('');
@@ -867,6 +871,25 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash === '#admin') {
+        setCurrentScreen('admin');
+      } else if (hash.startsWith('#track/')) {
+        const orderId = hash.split('/')[1];
+        if (orderId) {
+          setPublicTrackingOrderId(orderId);
+          setCurrentScreen('home'); // Just in case, though public tracker will override
+        }
+      }
+    };
+
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
   const fetchProducts = async () => {
     try {
       const res = await axios.get('/api/products');
@@ -878,13 +901,24 @@ export default function App() {
   };
 
   const fetchOrders = async () => {
+    setIsSyncing(true);
     try {
       const res = await axios.get('/api/admin/orders', {
         headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
       });
       setOrders(res.data);
+      setLastSync(new Date());
+      setDatabaseConnected(true);
     } catch (err) {
       console.error("Error fetching orders:", err);
+      setDatabaseConnected(false);
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        handleLogout();
+        setToast({ message: "Sessão expirada. Faça login novamente.", visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 4000);
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -2050,9 +2084,31 @@ export default function App() {
                 {adminSection === 'dashboard' && (
                   <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                       <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Painel de Controle</h2>
-                       <button 
-                         onClick={async () => {
+                       <div className="flex flex-col">
+                          <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Painel de Controle</h2>
+                          {lastSync && (
+                            <p className="text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
+                               <span className={databaseConnected === false ? 'text-red-500' : 'text-stone-400'}>
+                                  {databaseConnected === false ? 'Erro de Conexão' : 'Sincronizado'}: {lastSync.toLocaleTimeString('pt-BR')}
+                               </span>
+                               {isSyncing && <RefreshCw size={10} className="animate-spin text-amarena-purple" />}
+                            </p>
+                          )}
+                       </div>
+                       <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => {
+                              fetchOrders();
+                              fetchClosings();
+                              fetchProducts();
+                            }}
+                            className={`p-3 bg-white border border-stone-100 rounded-2xl text-stone-400 hover:text-amarena-purple transition-all ${isSyncing ? 'animate-spin' : ''}`}
+                            title="Atualizar Dados"
+                          >
+                            <RefreshCw size={20} />
+                          </button>
+                          <button 
+                            onClick={async () => {
                            const nextStatus = !(settings?.isStoreOpen ?? true);
                            const newSettings = { ...settings, isStoreOpen: nextStatus };
                            setSettings(newSettings);
@@ -2092,8 +2148,66 @@ export default function App() {
                       </button>
                       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center">
                         <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1">Total Hoje</p>
-                        <p className="text-5xl font-display font-bold text-amarena-purple">R$ {orders.filter(o => new Date(o.createdAt).getDate() === new Date().getDate()).reduce((acc, curr) => acc + curr.total, 0).toFixed(0)}</p>
+                        <p className="text-5xl font-display font-bold text-amarena-purple">R$ {orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled').reduce((acc, curr) => acc + curr.total, 0).toFixed(0)}</p>
                       </div>
+                    </div>
+
+                    {/* Recent Orders List */}
+                    <div className="mt-12">
+                       <div className="flex justify-between items-center mb-6">
+                          <h3 className="text-xl font-bold text-stone-800 uppercase tracking-tight">Atividade Recente</h3>
+                          <button 
+                            onClick={() => setAdminSection('orders')}
+                            className="text-xs font-black text-amarena-purple uppercase tracking-widest hover:underline"
+                          >
+                            Ver todos os pedidos
+                          </button>
+                       </div>
+                       <div className="space-y-4">
+                          {orders.slice(0, 5).map(order => (
+                             <div key={order.id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
+                                <div className="flex items-center gap-4">
+                                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
+                                      order.status === 'confirmed' ? 'bg-blue-100 text-blue-600' : 
+                                      order.status === 'completed' ? 'bg-green-100 text-green-600' : 
+                                      'bg-stone-100 text-stone-400'
+                                   }`}>
+                                      <History size={20} />
+                                   </div>
+                                   <div>
+                                      <p className="text-xs font-black text-stone-300 uppercase tracking-widest">#{order.id?.slice(-6) || '---'}</p>
+                                      <p className="font-bold text-stone-800 capitalize">{order.clientInfo?.name || 'Cliente'}</p>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                   <div className="text-right">
+                                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Total</p>
+                                      <p className="font-bold text-stone-800">R$ {order.total.toFixed(2)}</p>
+                                   </div>
+                                   <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' :
+                                      order.status === 'confirmed' ? 'bg-blue-100 text-blue-600' :
+                                      order.status === 'completed' ? 'bg-green-100 text-green-600' :
+                                      'bg-stone-100 text-stone-400'
+                                   }`}>
+                                      {order.status}
+                                   </div>
+                                </div>
+                             </div>
+                          ))}
+                          {orders.length === 0 && (
+                            <div className="text-center p-12 bg-stone-50 rounded-[32px] border-2 border-dashed border-stone-200">
+                               <p className="text-stone-400 font-bold">Nenhum pedido encontrado no banco de dados.</p>
+                               <button 
+                                 onClick={() => fetchOrders()}
+                                 className="mt-4 text-xs font-black text-amarena-purple uppercase tracking-widest underline"
+                               >
+                                  Tentar Sincronizar Agora
+                               </button>
+                            </div>
+                          )}
+                       </div>
                     </div>
                   </div>
                 )}
@@ -2587,6 +2701,19 @@ export default function App() {
                               >
                                 <Printer size={20} /> Imprimir
                               </button>
+                              {order.clientInfo.deliveryType === 'delivery' && (
+                                <button 
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/#track/${order.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    setToast({ message: "Link de rastreio copiado!", visible: true });
+                                    setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                                  }}
+                                  className="flex-1 md:flex-none p-4 bg-purple-100 text-amarena-purple rounded-2xl hover:bg-purple-200 transition-all font-bold flex items-center justify-center gap-2 text-sm"
+                                >
+                                  <MapPin size={20} /> Link Rastreio
+                                </button>
+                              )}
                             </div>
                           </div>
                         ));
@@ -3395,6 +3522,55 @@ export default function App() {
 
       {/* Actual Hidden Ticket for Browser Printing */}
       <OrderTicket order={printOrder} />
+
+      <AnimatePresence>
+        {publicTrackingOrderId && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-stone-50 flex flex-col"
+          >
+             <div className="p-6 bg-white border-b border-stone-100 flex items-center justify-between no-print">
+                <div className="flex items-center gap-3">
+                   <div className="bg-amarena-red p-2.5 rounded-2xl text-white shadow-lg shadow-amarena-red/20"><IceCream size={24} /></div>
+                   <div>
+                      <h2 className="font-brand text-2xl text-stone-800 italic">Amarena Tracking</h2>
+                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Acompanhe seu pedido em tempo real</p>
+                   </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setPublicTrackingOrderId(null);
+                    window.location.hash = '';
+                  }}
+                  className="p-3 bg-stone-50 rounded-2xl text-stone-500 hover:bg-stone-100 transition-all hover:rotate-90"
+                >
+                   <X size={20} />
+                </button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-4 md:p-10 w-full bg-stone-50/50">
+                <div className="max-w-xl mx-auto">
+                   <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm mb-6 flex justify-between items-center">
+                      <div>
+                         <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-1">Senha do Pedido</p>
+                         <p className="text-2xl font-brand text-amarena-purple uppercase">#{publicTrackingOrderId.slice(-4)}</p>
+                      </div>
+                      <div className="text-right">
+                         <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-1">Status Atual</p>
+                         <p className="font-bold text-stone-800 text-sm">Monitorando via GPS</p>
+                      </div>
+                   </div>
+                   <OrderLiveTracker orderId={publicTrackingOrderId} />
+                   
+                   <div className="mt-12 text-center text-stone-300">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em]">Amarena Sorvetes — Passos MG</p>
+                   </div>
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
