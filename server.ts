@@ -453,6 +453,45 @@ async function startServer() {
     }
   });
 
+  // Analytics
+  app.post("/api/analytics/visit", async (req, res) => {
+    try {
+      const db = await getDb();
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      await db.collection("daily_visits").updateOne(
+        { date: today },
+        { $inc: { count: 1 }, $setOnInsert: { date: today } },
+        { upsert: true }
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/analytics/stats", authenticateAdmin, async (req, res) => {
+    try {
+      const db = await getDb();
+      const today = new Date().toISOString().split('T')[0];
+      const todayStats = await db.collection("daily_visits").findOne({ date: today });
+      const totalVisits = await db.collection("daily_visits").aggregate([
+        { $group: { _id: null, total: { $sum: "$count" } } }
+      ]).toArray();
+      
+      const totalOrders = await db.collection("orders").countDocuments();
+      const totalClients = (await db.collection("orders").distinct("clientInfo.phone")).length;
+
+      res.json({
+        todayVisits: todayStats ? todayStats.count : 0,
+        totalVisits: totalVisits[0] ? totalVisits[0].total : 0,
+        totalOrders,
+        totalClients
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // Mercado Pago
   app.post("/api/payment/create-preference", async (req, res) => {
     try {

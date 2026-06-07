@@ -728,6 +728,12 @@ export default function App() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings' | 'delivery' | 'daily-closing'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
+  const [analyticsStats, setAnalyticsStats] = useState<{
+    todayVisits: number;
+    totalVisits: number;
+    totalOrders: number;
+    totalClients: number;
+  } | null>(null);
   const [operatorName, setOperatorName] = useState('');
   const [ordersTab, setOrdersTab] = useState<'active' | 'completed' | 'archived'>('active');
   const [ordersSearchTerm, setOrdersSearchTerm] = useState('');
@@ -819,8 +825,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (clientPhone) fetchUserOrders();
-  }, [clientPhone]);
+    if (isAdminLoggedIn) {
+      fetchAnalytics();
+      const interval = setInterval(fetchAnalytics, 60000 * 5); // Refersh every 5 mins
+      return () => clearInterval(interval);
+    }
+  }, [isAdminLoggedIn]);
 
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
   const [viewingTicket, setViewingTicket] = useState<Order | null>(null);
@@ -1007,6 +1017,7 @@ export default function App() {
 
     handleHash();
     window.addEventListener('hashchange', handleHash);
+    trackVisit(); // Track visitor when app starts
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
@@ -1048,6 +1059,32 @@ export default function App() {
       setSettings(res.data);
     } catch (err) {
       console.error("Error fetching settings:", err);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    if (!isAdminLoggedIn) return;
+    try {
+      const res = await axios.get('/api/analytics/stats', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
+      });
+      setAnalyticsStats(res.data);
+    } catch (err) {
+      console.error("Error fetching analytics:", err);
+    }
+  };
+
+  const trackVisit = async () => {
+    try {
+      // Check if session visit tracked today
+      const lastVisit = localStorage.getItem('amarena_last_visit');
+      const today = new Date().toISOString().split('T')[0];
+      if (lastVisit !== today) {
+        await axios.post('/api/analytics/visit');
+        localStorage.setItem('amarena_last_visit', today);
+      }
+    } catch (err) {
+      console.warn("Analytics visit tracking failed", err);
     }
   };
 
@@ -2439,6 +2476,26 @@ export default function App() {
                     </div>
                   </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {analyticsStats && (
+                        <div className="md:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
+                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Visitas Hoje</p>
+                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.todayVisits}</p>
+                           </div>
+                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
+                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total de Visitas</p>
+                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalVisits}</p>
+                           </div>
+                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
+                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Pedidos</p>
+                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalOrders}</p>
+                           </div>
+                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
+                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Clientes</p>
+                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalClients}</p>
+                           </div>
+                        </div>
+                      )}
                       <button 
                         onClick={() => setAdminSection('orders')}
                         className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center hover:shadow-lg hover:border-amarena-red/10 transition-all group"
