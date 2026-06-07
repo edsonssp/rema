@@ -728,6 +728,7 @@ export default function App() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings' | 'delivery' | 'daily-closing'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
+  const [showFullClosingHistory, setShowFullClosingHistory] = useState(false);
   const [analyticsStats, setAnalyticsStats] = useState<{
     todayVisits: number;
     totalVisits: number;
@@ -2714,10 +2715,46 @@ export default function App() {
                     {/* History */}
                     {closings.length > 0 && (
                       <div className="mt-12 no-print">
-                         <h3 className="text-xl font-bold text-stone-800 mb-6 uppercase tracking-tight">Últimos Fechamentos</h3>
+                         <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-stone-800 uppercase tracking-tight">
+                               {showFullClosingHistory ? 'Histórico Completo' : 'Fechamento de Hoje'}
+                            </h3>
+                            <button 
+                              onClick={() => setShowFullClosingHistory(!showFullClosingHistory)}
+                              className="text-xs font-black text-amarena-purple uppercase tracking-widest px-4 py-2 bg-amarena-purple/5 rounded-xl hover:bg-amarena-purple/10 transition-all flex items-center gap-2"
+                            >
+                               {showFullClosingHistory ? 'Ver Apenas Hoje' : 'Ver Todos'}
+                               <History size={14} />
+                            </button>
+                         </div>
                          <div className="space-y-4">
-                            {closings.map((c: any) => (
-                               <div key={c._id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-all">
+                            {(() => {
+                               const filtered = closings.filter((c: any) => {
+                                 if (showFullClosingHistory) return true;
+                                 return new Date(c.date).toDateString() === new Date().toDateString();
+                               });
+                               
+                               if (filtered.length === 0) {
+                                 return (
+                                   <div className="bg-stone-50 border border-dashed border-stone-200 p-8 rounded-[28px] text-center">
+                                      <History className="mx-auto text-stone-300 mb-2" size={32} />
+                                      <p className="text-stone-400 font-bold text-sm uppercase tracking-widest">
+                                        {showFullClosingHistory ? 'Nenhum fechamento registrado' : 'Nenhum fechamento hoje'}
+                                      </p>
+                                      {!showFullClosingHistory && (
+                                        <button 
+                                          onClick={() => setShowFullClosingHistory(true)}
+                                          className="mt-4 text-[10px] font-black text-amarena-purple uppercase tracking-widest underline decoration-amarena-purple/30 underline-offset-4"
+                                        >
+                                          Ver Histórico Completo
+                                        </button>
+                                      )}
+                                   </div>
+                                 );
+                               }
+
+                               return filtered.map((c: any) => (
+                                 <div key={c._id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-all">
                                   <div className="flex items-center gap-4">
                                      <div className="w-12 h-12 bg-stone-100 rounded-2xl flex items-center justify-center text-stone-400">
                                         <History size={20} />
@@ -2738,7 +2775,8 @@ export default function App() {
                                      </div>
                                   </div>
                                </div>
-                            ))}
+                             ));
+                           })()}
                          </div>
                       </div>
                     )}
