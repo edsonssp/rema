@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { MongoClient, ObjectId, Db } from "mongodb";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
 
@@ -231,14 +231,36 @@ async function startServer() {
     }
   });
 
+// Helper function to send notification to a phone
+async function sendNotificationToPhone(phone: string, title: string, body: string, db: Db) {
+  try {
+    initFirebaseAdmin();
+    const tokens = await db.collection("pushTokens").find({ phone }).toArray();
+    const registrationTokens = tokens.map(t => t.token);
+
+    if (registrationTokens.length > 0) {
+      await admin.messaging().sendEachForMulticast({
+        tokens: registrationTokens,
+        notification: { title, body },
+      });
+      console.log(`[Amarena] Push notification sent to phone ${phone}`);
+    }
+  } catch (err) {
+    console.error("[Amarena] Error sending push notification:", err);
+  }
+}
+
   // Push Notifications
   app.post("/api/push-token", async (req, res) => {
     try {
       const db = await getDb();
-      const { token } = req.body;
+      const { token, phone } = req.body;
+      const updateData: any = { token, updatedAt: new Date() };
+      if (phone) updateData.phone = phone;
+
       await db.collection("pushTokens").updateOne(
         { token },
-        { $set: { token, updatedAt: new Date() } },
+        { $set: updateData },
         { upsert: true }
       );
       res.json({ message: "Token registered" });
@@ -331,6 +353,9 @@ async function startServer() {
   app.patch("/api/admin/orders/:id", authenticateAdmin, async (req, res) => {
     try {
       const db = await getDb();
+      const order = await db.collection("orders").findOne({ _id: new ObjectId(req.params.id) });
+      if (!order) return res.status(404).json({ error: "Pedido não encontrado" });
+
       const updateFields: any = {};
       if (req.body.status !== undefined) updateFields.status = req.body.status;
       if (req.body.archived !== undefined) updateFields.archived = req.body.archived;
@@ -340,6 +365,17 @@ async function startServer() {
         { _id: new ObjectId(req.params.id) },
         { $set: updateFields }
       );
+
+      // Trigger push notification if status changed to 'shipped'
+      if (req.body.status === 'shipped' && order.status !== 'shipped' && order.clientInfo?.phone) {
+        await sendNotificationToPhone(
+          order.clientInfo.phone,
+          "Pedido a caminho! 🚚",
+          `Seu pedido #${order._id.toString().slice(-4).toUpperCase()} saiu para entrega.`,
+          db
+        );
+      }
+
       res.json({ message: "Pedido atualizado com sucesso" });
     } catch (err: unknown) {
       res.status(500).json({ error: String(err) });
@@ -366,6 +402,8 @@ async function startServer() {
     try {
       const db = await getDb();
       const { lat, lng } = req.body;
+      const order = await db.collection("orders").findOne({ _id: new ObjectId(req.params.id) });
+
       await db.collection("orders").updateOne(
         { _id: new ObjectId(req.params.id) },
         { 
@@ -375,6 +413,17 @@ async function startServer() {
           } 
         }
       );
+
+      // Trigger push notification if status changed to 'shipped'
+      if (order && order.status !== 'shipped' && order.clientInfo?.phone) {
+        await sendNotificationToPhone(
+          order.clientInfo.phone,
+          "Pedido a caminho! 🚚",
+          `Seu pedido #${order._id.toString().slice(-4).toUpperCase()} saiu para entrega. Acompanhe no app!`,
+          db
+        );
+      }
+
       res.json({ message: "Localização atualizada" });
     } catch (err: unknown) {
       res.status(500).json({ error: String(err) });
@@ -453,51 +502,53 @@ async function startServer() {
     }
   });
 
-  // Analytics
-  app.post("/api/analytics/visit", async (req, res) => {
-    try {
-      const db = await getDb();
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      await db.collection("daily_visits").updateOne(
-        { date: today },
-        { $inc: { count: 1 }, $setOnInsert: { date: today } },
-        { upsert: true }
-      );
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  app.get("/api/analytics/stats", authenticateAdmin, async (req, res) => {
-    try {
-      const db = await getDb();
-      const today = new Date().toISOString().split('T')[0];
-      const todayStats = await db.collection("daily_visits").findOne({ date: today });
-      const totalVisits = await db.collection("daily_visits").aggregate([
-        { $group: { _id: null, total: { $sum: "$count" } } }
-      ]).toArray();
-      
-      const totalOrders = await db.collection("orders").countDocuments();
-      const totalClients = (await db.collection("orders").distinct("clientInfo.phone")).length;
-
-      res.json({
-        todayVisits: todayStats ? todayStats.count : 0,
-        totalVisits: totalVisits[0] ? totalVisits[0].total : 0,
-        totalOrders,
-        totalClients
-      });
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
   // Mercado Pago
+  app.post("/api/payment/pix", async (req, res) => {
+    try {
+      const { transaction_amount, description, email } = req.body;
+      const client = getMpClient();
+      const payment = new Payment(client);
+      
+      const response = await payment.create({
+        body: {
+          transaction_amount: transaction_amount,
+          description: description,
+          payment_method_id: "pix",
+          payer: {
+            email: email || "cliente@amarena.com"
+          }
+        }
+      });
+      
+      res.json({ 
+        payment_id: response.id,
+        qr_code: response.point_of_interaction?.transaction_data?.qr_code,
+        qr_code_base64: response.point_of_interaction?.transaction_data?.qr_code_base64
+      });
+    } catch (err: unknown) {
+      console.error(err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/payment/pix/:id", async (req, res) => {
+    try {
+      const client = getMpClient();
+      const payment = new Payment(client);
+      const response = await payment.get({ id: req.params.id });
+      res.json({ status: response.status });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   app.post("/api/payment/create-preference", async (req, res) => {
     try {
       const { items, external_reference } = req.body;
       const client = getMpClient();
       const preference = new Preference(client);
+      
+      const appUrl = process.env.APP_URL || (req.headers.origin ? String(req.headers.origin) : `${req.protocol}://${req.get('host')}`);
       
       const response = await preference.create({
         body: {
@@ -509,9 +560,9 @@ async function startServer() {
           })),
           external_reference,
           back_urls: {
-            success: `${process.env.APP_URL}/success`,
-            failure: `${process.env.APP_URL}/failure`,
-            pending: `${process.env.APP_URL}/pending`
+            success: `${appUrl}/success`,
+            failure: `${appUrl}/failure`,
+            pending: `${appUrl}/pending`
           },
           auto_return: "approved",
           payment_methods: {

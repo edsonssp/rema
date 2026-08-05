@@ -1,58 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { motion } from 'motion/react';
-import { Truck, MapPin, Loader2, Navigation, AlertTriangle, IceCream } from 'lucide-react';
+import { Truck, Loader2, Navigation, MapPin } from 'lucide-react';
 
-const API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
-// Store location (Center of Passos - MG)
-const STORE_LOCATION = { lat: -20.7196, lng: -46.6111 }; 
+// Store location (Center of Passos - MG example)
+const STORE_LOCATION: [number, number] = [-20.7196, -46.6111];
+
+// Fix Leaflet marker icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom markers using HTML/CSS for a futuristic look
+const truckIcon = new L.DivIcon({
+  html: `<div style="background-color: #ef4444; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(239,68,68,0.8); border: 2px solid white;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>`,
+  className: '',
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+});
+
+const storeIcon = new L.DivIcon({
+  html: `<div style="background-color: #f97316; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(249,115,22,0.8); border: 2px solid white;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg></div>`,
+  className: '',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
 
 interface OrderLiveTrackerProps {
   orderId: string;
 }
 
-const RoutePolyline = ({ destination, origin }: { destination: string | google.maps.LatLngLiteral, origin: google.maps.LatLngLiteral }) => {
-  const map = useMap();
-  const routesLib = useMapsLibrary('routes');
-  const polylinesRef = useRef<google.maps.Polyline[]>([]);
-
-  useEffect(() => {
-    if (!routesLib || !map || !destination) return;
-
-    // Clear previous route
-    polylinesRef.current.forEach(p => p.setMap(null));
-
-    routesLib.Route.computeRoutes({
-      origin: origin,
-      destination: destination,
-      travelMode: 'DRIVING',
-      fields: ['path', 'distanceMeters', 'durationMillis', 'viewport'],
-    }).then(({ routes }) => {
-      if (routes?.[0]) {
-        const newPolylines = routes[0].createPolylines();
-        newPolylines.forEach(p => {
-          p.setOptions({
-            strokeColor: '#ef4444', // amarena-red
-            strokeWeight: 5,
-            strokeOpacity: 0.8
-          });
-          p.setMap(map);
-        });
-        polylinesRef.current = newPolylines;
-        if (routes[0].viewport) map.fitBounds(routes[0].viewport);
-      }
-    }).catch(err => console.error("Route calculation failed", err));
-
-    return () => polylinesRef.current.forEach(p => p.setMap(null));
-  }, [routesLib, map, destination, origin]);
-
-  return null;
-};
-
 export const OrderLiveTracker: React.FC<OrderLiveTrackerProps> = ({ orderId }) => {
   const [order, setOrder] = useState<any>(null);
-  const [driverLocation, setDriverLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [location, setLocation] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchOrderAndLocation = async () => {
@@ -60,10 +46,7 @@ export const OrderLiveTracker: React.FC<OrderLiveTrackerProps> = ({ orderId }) =
       const res = await axios.get(`/api/orders/${orderId}/track`); 
       setOrder(res.data);
       if (res.data.deliveryLocation) {
-        setDriverLocation({ lat: res.data.deliveryLocation.lat, lng: res.data.deliveryLocation.lng });
-      } else {
-        // Fallback to store location if no tracker yet
-        setDriverLocation(STORE_LOCATION);
+        setLocation([res.data.deliveryLocation.lat, res.data.deliveryLocation.lng]);
       }
     } catch (err) {
       console.error("Error fetching order tracking info:", err);
@@ -74,109 +57,83 @@ export const OrderLiveTracker: React.FC<OrderLiveTrackerProps> = ({ orderId }) =
 
   useEffect(() => {
     fetchOrderAndLocation();
-    const interval = setInterval(fetchOrderAndLocation, 8000); // 8s refresh to be safe with quotas
+    const interval = setInterval(fetchOrderAndLocation, 5000); // 5s refresh
     return () => clearInterval(interval);
   }, [orderId]);
 
-  if (!API_KEY) {
+  if (loading && !location) {
     return (
-      <div className="bg-stone-50 rounded-3xl p-8 text-center border-2 border-stone-100 mt-6 overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amarena-purple via-amarena-red to-amarena-green opacity-20" />
-        <MapPin className="mx-auto text-stone-300 mb-4" size={40} />
-        <h4 className="text-stone-800 font-bold mb-1">Acompanhamento em Tempo Real</h4>
-        <p className="text-stone-500 text-sm mb-4">Para ver seu pedido no mapa, é necessário configurar a chave do Google Maps.</p>
-        
-        <div className="text-left bg-white p-4 rounded-2xl border border-stone-100 shadow-sm inline-block max-w-xs">
-          <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <AlertTriangle size={12} className="text-amber-500" /> Instruções de Configuração
-          </p>
-          <ol className="text-[10px] space-y-2 text-stone-600 font-medium">
-            <li>1. Acesse o <a href="https://console.cloud.google.com/google/maps-apis/start?utm_campaign=gmp-code-assist-ais" target="_blank" rel="noopener" className="text-blue-500 underline">Console do Google</a></li>
-            <li>2. Gere sua <strong>API Key</strong></li>
-            <li>3. No <strong>AI Studio</strong>, vá em <strong>Configurações (⚙️)</strong></li>
-            <li>4. Adicione o segredo: <code>GOOGLE_MAPS_PLATFORM_KEY</code></li>
-          </ol>
-        </div>
+      <div className="bg-stone-50 h-64 rounded-3xl flex flex-col items-center justify-center text-stone-400 mt-6 animate-pulse border border-stone-100">
+        <Loader2 className="animate-spin mb-2" size={24} />
+        <p className="text-xs font-bold uppercase tracking-widest">Localizando entregador...</p>
       </div>
     );
   }
 
-  if (loading && !driverLocation) {
-    return (
-      <div className="bg-stone-50 h-72 rounded-[40px] flex flex-col items-center justify-center text-stone-400 mt-6 animate-pulse border-4 border-white shadow-xl">
-        <Loader2 className="animate-spin mb-3 text-amarena-red" size={32} />
-        <p className="text-xs font-black uppercase tracking-[0.2em]">Conectando à Satélite...</p>
-      </div>
-    );
-  }
-
-  if (!driverLocation || !order) return null;
+  if (!location || !order) return null;
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-6 overflow-hidden rounded-[40px] border-8 border-white shadow-premium relative bg-stone-100"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="mt-6 overflow-hidden rounded-[40px] border-4 border-stone-800 shadow-2xl relative bg-stone-900"
     >
-      <div className="h-96 w-full">
-        <APIProvider apiKey={API_KEY} version="weekly">
-          <Map
-            defaultCenter={driverLocation}
-            defaultZoom={15}
-            center={driverLocation}
-            mapId="AMARENA_TRACKER_V2"
-            disableDefaultUI
-            internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-            style={{ width: '100%', height: '100%' }}
-          >
-            {/* Driver Marker */}
-            <AdvancedMarker position={driverLocation}>
-              <div className="relative">
-                <div className="absolute -inset-4 bg-amarena-red/20 rounded-full animate-ping" />
-                <div className="relative p-2.5 bg-amarena-red rounded-full shadow-lg border-2 border-white z-10 transition-transform active:scale-110">
-                  <Truck size={22} className="text-white" />
-                </div>
-              </div>
-            </AdvancedMarker>
+      <div className="h-80 w-full relative z-0">
+        <MapContainer 
+          center={location} 
+          zoom={15} 
+          style={{ height: '100%', width: '100%', background: '#1c1c1c' }}
+          zoomControl={false}
+        >
+          {/* Futuristic Dark Theme Map Tiles from CartoDB */}
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          />
+          
+          {/* Store Location */}
+          <Marker position={STORE_LOCATION} icon={storeIcon}>
+            <Popup className="text-xs font-bold font-brand">Amarena (Origem)</Popup>
+          </Marker>
 
-            {/* Store Marker */}
-            <AdvancedMarker position={STORE_LOCATION}>
-               <div className="p-2 bg-white rounded-full shadow-md border-2 border-amarena-purple">
-                  <IceCream size={16} className="text-amarena-purple" />
-               </div>
-            </AdvancedMarker>
+          {/* Delivery Person Location */}
+          <Marker position={location} icon={truckIcon}>
+            <Popup className="text-xs font-bold font-brand">Entregador</Popup>
+          </Marker>
 
-            {order.clientInfo?.address && (
-              <RoutePolyline 
-                origin={STORE_LOCATION}
-                destination={order.clientInfo.address} 
-              />
-            )}
-          </Map>
-        </APIProvider>
+          {/* Futuristic glowing line from store to driver */}
+          <Polyline 
+            positions={[STORE_LOCATION, location]} 
+            pathOptions={{ color: '#ef4444', weight: 4, dashArray: '10, 15', opacity: 0.8 }} 
+          />
+        </MapContainer>
+        
+        {/* Futuristic Radar Sweep Overlay */}
+        <div className="absolute inset-0 pointer-events-none z-[1000] overflow-hidden mix-blend-screen opacity-30">
+          <div className="w-[200%] h-[200%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[conic-gradient(from_0deg,transparent_0deg,transparent_270deg,rgba(239,68,68,0.3)_360deg)] animate-spin" style={{ animationDuration: '4s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 border border-amarena-red/40 rounded-full" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 border border-amarena-red/20 rounded-full" />
+        </div>
       </div>
       
-      <div className="absolute top-4 left-4 right-4 flex flex-col gap-2 pointer-events-none">
-        <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl border border-white flex items-center gap-3 self-start scale-90 origin-top-left">
-          <div className="w-2 h-2 bg-amarena-green rounded-full animate-pulse" />
-          <span className="text-[10px] font-black uppercase text-stone-800 tracking-widest">Localização Atualizada</span>
+      <div className="absolute top-4 left-4 right-4 flex flex-col gap-2 pointer-events-none z-[2000]">
+        <div className="bg-stone-900/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.3)] border border-amarena-red/30 flex items-center gap-3 self-start">
+          <div className="w-2 h-2 bg-amarena-red rounded-full animate-ping shadow-[0_0_8px_rgba(239,68,68,1)]" />
+          <span className="text-[10px] font-black uppercase text-white tracking-[0.2em]">Rastreamento ao Vivo</span>
         </div>
       </div>
 
-      <div className="bg-white p-6 border-t border-stone-100 relative">
-        <div className="absolute -top-12 right-8 p-4 bg-amarena-purple text-white rounded-3xl shadow-2xl flex items-center justify-center">
-           <Navigation size={28} className="animate-pulse" />
+      <div className="bg-stone-900 p-5 border-t border-stone-800 relative z-[2000]">
+        <div className="absolute -top-10 right-6 p-4 bg-amarena-red text-white rounded-2xl shadow-[0_10px_25px_rgba(239,68,68,0.5)] border border-red-400/20">
+           <Navigation size={24} className="animate-pulse" />
         </div>
-        <div className="flex items-center gap-5">
-           <div className="w-14 h-14 bg-amarena-red/5 rounded-3xl flex items-center justify-center">
-              <Truck size={28} className="text-amarena-red" />
+        <div className="flex items-center gap-4">
+           <div className="p-3 bg-stone-800 rounded-2xl shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] border border-stone-700">
+              <Truck size={20} className="text-amarena-red" />
            </div>
            <div>
-              <p className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em] mb-1">Status da Entrega</p>
-              <p className="text-base font-bold text-stone-800 leading-tight">
-                {order.status === 'shipped' ? 'Seu pedido está em trânsito!' : 'Aguardando início do trajeto.'}
-              </p>
-              <p className="text-xs text-stone-400 mt-1">Estimativa baseada no trânsito atual.</p>
+              <p className="text-[10px] font-black text-amarena-red uppercase tracking-[0.2em] mb-0.5">Sistema de Rastreio Ativo</p>
+              <p className="text-sm font-bold text-stone-300">Entregador a caminho. Acompanhe o radar em tempo real.</p>
            </div>
         </div>
       </div>

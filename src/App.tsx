@@ -20,7 +20,6 @@ import {
   Package,
   History,
   RefreshCcw,
-  RefreshCw,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -342,7 +341,7 @@ const OrderHistory = ({ clientPhone, clientName, setCurrentScreen, setCart, setV
         </div>
       )}
 
-      <div className="p-4 pt-0 space-y-6 max-w-lg mx-auto">
+      <div className="p-4 pt-0 space-y-6 max-w-3xl mx-auto">
         <h3 className="px-2 text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mb-2">Histórico de Atividade</h3>
         {loadingHistory ? (
           <div className="flex flex-col items-center py-20 gap-4">
@@ -641,70 +640,6 @@ const LoyaltyCard = ({ completedOrders, clientName }: { completedOrders: number,
   );
 };
 
-const DailyClosingTicket = ({ orders, operatorName }: { orders: Order[], operatorName: string }) => {
-  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled');
-  const total = todayOrders.reduce((acc, curr) => acc + curr.total, 0);
-  
-  const methods = {
-    'delivery_payment': { label: 'DINHEIRO/ENTREGA', total: 0 },
-    'pix': { label: 'PIX (MANUAL/APP)', total: 0 },
-    'card': { label: 'CARTÃO (APP)', total: 0 },
-    'others': { label: 'OUTROS', total: 0 }
-  };
-
-  todayOrders.forEach(o => {
-    const m = o.paymentMethod?.toLowerCase() || '';
-    if (m.includes('entrega')) methods.delivery_payment.total += o.total;
-    else if (m.includes('pix')) methods.pix.total += o.total;
-    else if (m.includes('card') || m.includes('mercado')) methods.card.total += o.total;
-    else methods.others.total += o.total;
-  });
-
-  return (
-    <div className="print-only p-4 text-black font-mono w-[80mm] mx-auto bg-white text-[12px] leading-tight">
-      <div className="text-center border-b border-dashed border-black pb-3 mb-3">
-        <h2 className="text-lg font-bold uppercase tracking-tighter">Amarena Sorvetes</h2>
-        <p className="font-bold">FECHAMENTO DE CAIXA</p>
-        <p className="text-[10px]">------------------------------------------</p>
-        <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
-        <p>Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
-      </div>
-
-      <div className="mb-4">
-        <p className="font-bold uppercase mb-1">OPERADOR: {operatorName || 'Admin'}</p>
-        <p className="text-[10px]">------------------------------------------</p>
-      </div>
-
-      <div className="mb-4">
-        <p className="font-bold uppercase text-[11px] mb-2 border-b border-dashed border-black pb-1 inline-block">RESUMO POR PAGAMENTO</p>
-        {Object.values(methods).filter(m => m.total > 0 || m.label === 'TOTAL GERAL').map(m => (
-          <div key={m.label} className="flex justify-between items-center mb-1">
-             <span className="uppercase text-[11px]">{m.label}</span>
-             <span className="font-bold">R$ {m.total.toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="border-t border-dashed border-black pt-2 mb-4">
-        <div className="flex justify-between font-bold text-[14px] mt-1">
-          <span>TOTAL BRUTO</span>
-          <span>R$ {total.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-[11px] mt-1">
-          <span>PEDIDOS HOJE</span>
-          <span>{todayOrders.length}</span>
-        </div>
-      </div>
-
-      <div className="text-center mt-6 pt-4 border-t border-dashed border-black">
-        <p className="text-[10px] uppercase font-bold">Relatório Gerencial</p>
-        <p className="text-[9px]">Amarena Premium Software</p>
-        <p className="text-[8px] mt-2">© {new Date().getFullYear()} - Todos os direitos reservados</p>
-      </div>
-    </div>
-  );
-};
-
 // --- App ---
 
 type AppSettings = {
@@ -717,10 +652,63 @@ type AppSettings = {
   deliveryFee?: number;
   activePromotionTitle?: string;
   activePromotionBody?: string;
+  activePromotionImage?: string;
 };
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'sorvete' | 'picole' | 'potes' | 'acai' | 'promos' | 'milkshake' | 'potePersonalizado' | 'whatsapp' | 'admin' | 'checkout' | 'success' | 'history'>('home');
+  const getInitialScreen = () => {
+    const path = window.location.pathname;
+    if (path === '/admin') return 'admin';
+    const hash = window.location.hash.replace('#', '');
+    const validScreens = ['home', 'sorvete', 'picole', 'potes', 'acai', 'promos', 'milkshake', 'potePersonalizado', 'whatsapp', 'admin', 'checkout', 'success', 'history'];
+    if (validScreens.includes(hash)) return hash as any;
+    return 'home';
+  };
+
+  const [currentScreen, _setCurrentScreen] = useState<'home' | 'sorvete' | 'picole' | 'potes' | 'acai' | 'promos' | 'milkshake' | 'potePersonalizado' | 'whatsapp' | 'admin' | 'checkout' | 'success' | 'history'>(getInitialScreen());
+
+  const setCurrentScreen = (screen: typeof currentScreen) => {
+    _setCurrentScreen(screen);
+    const hash = screen === 'home' ? '' : `#${screen}`;
+    const newUrl = screen === 'home' ? '/' : (hash || window.location.pathname);
+    if (window.location.hash !== hash || window.location.pathname !== newUrl) {
+      window.history.pushState({ screen }, '', newUrl);
+    }
+    // Also scroll to top on screen change
+    window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    // Set initial state so the very first back button works if we pushed things
+    window.history.replaceState({ screen: currentScreen }, '', window.location.hash || window.location.pathname);
+
+    const handlePopState = (event: PopStateEvent) => {
+      // If modal is open, just close it and don't change screen (unless state says otherwise)
+      setShowPromoModal(false);
+      
+      if (event.state && event.state.screen) {
+        _setCurrentScreen(event.state.screen);
+      } else {
+        const path = window.location.pathname;
+        const hash = window.location.hash.replace('#', '');
+        const validScreens = ['home', 'sorvete', 'picole', 'potes', 'acai', 'promos', 'milkshake', 'potePersonalizado', 'whatsapp', 'admin', 'checkout', 'success', 'history'];
+        
+        if (path === '/admin') {
+          _setCurrentScreen('admin');
+        } else if (validScreens.includes(hash)) {
+          _setCurrentScreen(hash as any);
+        } else {
+          _setCurrentScreen('home');
+        }
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -728,25 +716,16 @@ export default function App() {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings' | 'delivery' | 'daily-closing'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
-  const [showFullClosingHistory, setShowFullClosingHistory] = useState(false);
-  const [analyticsStats, setAnalyticsStats] = useState<{
-    todayVisits: number;
-    totalVisits: number;
-    totalOrders: number;
-    totalClients: number;
-  } | null>(null);
   const [operatorName, setOperatorName] = useState('');
   const [ordersTab, setOrdersTab] = useState<'active' | 'completed' | 'archived'>('active');
   const [ordersSearchTerm, setOrdersSearchTerm] = useState('');
   const [closings, setClosings] = useState<any[]>([]);
-  const [publicTrackingOrderId, setPublicTrackingOrderId] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [databaseConnected, setDatabaseConnected] = useState<boolean | null>(null);
   
   // Promotion State
   const [promoTitle, setPromoTitle] = useState('');
   const [promoBody, setPromoBody] = useState('');
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ src: string, alt: string } | null>(null);
   
   // New States for UX
   const [searchQuery, setSearchQuery] = useState('');
@@ -760,6 +739,16 @@ export default function App() {
   const [cart, setCart] = useState<{ name: string, price: number, quantity: number }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>('delivery_payment');
   const [pixCopied, setPixCopied] = useState(false);
+  const [mpPixData, setMpPixData] = useState<{ qr_code: string, qr_code_base64: string, payment_id: string } | null>(null);
+  const [pixPollingInterval, setPixPollingInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Clear polling on unmount or screen change
+  useEffect(() => {
+    if (currentScreen !== 'checkout' && pixPollingInterval) {
+      clearInterval(pixPollingInterval);
+      setPixPollingInterval(null);
+    }
+  }, [currentScreen, pixPollingInterval]);
 
   useEffect(() => {
     // Direct routing for admin access via URL path
@@ -788,8 +777,10 @@ export default function App() {
         try {
             const token = await getToken(messaging, { vapidKey: 'BDJUqJ7PkeBSMALd7QZaRd5Lmvi1gQoUMDW49KPRBV83rLBjVUm3t0Aj4fE-jl5b-4voLAGmUHSEuZiqCTNbGgk' });
             if (token) {
-                await axios.post('/api/push-token', { token });
+                const savedClientInfo = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('amarena_client_info') || '{}') : {};
+                await axios.post('/api/push-token', { token, phone: savedClientInfo.phone });
                 localStorage.setItem('push_registered', 'true');
+                localStorage.setItem('push_registered_phone', savedClientInfo.phone || '');
             }
         } catch (error) {
             console.warn('Handling push notifications registration (non-critical):', error);
@@ -826,12 +817,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isAdminLoggedIn) {
-      fetchAnalytics();
-      const interval = setInterval(fetchAnalytics, 60000 * 5); // Refersh every 5 mins
-      return () => clearInterval(interval);
-    }
-  }, [isAdminLoggedIn]);
+    if (clientPhone) fetchUserOrders();
+  }, [clientPhone]);
 
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
   const [viewingTicket, setViewingTicket] = useState<Order | null>(null);
@@ -855,9 +842,22 @@ export default function App() {
   const [apartment, setApartment] = useState(savedClientInfo.apartment || '');
   const [neighborhood, setNeighborhood] = useState(savedClientInfo.neighborhood || '');
 
-  const saveClientData = () => {
+  const saveClientData = async () => {
     const info = { name: clientName, phone: clientPhone, address, number: addressNumber, neighborhood, apartment };
     localStorage.setItem('amarena_client_info', JSON.stringify(info));
+    
+    // Attempt to update the push token association with the new phone
+    try {
+      if (clientPhone && localStorage.getItem('push_registered_phone') !== clientPhone) {
+        const token = await getToken(messaging, { vapidKey: 'BDJUqJ7PkeBSMALd7QZaRd5Lmvi1gQoUMDW49KPRBV83rLBjVUm3t0Aj4fE-jl5b-4voLAGmUHSEuZiqCTNbGgk' }).catch(() => null);
+        if (token) {
+          await axios.post('/api/push-token', { token, phone: clientPhone });
+          localStorage.setItem('push_registered_phone', clientPhone);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to update push token with phone:", e);
+    }
   };
 
   const showToast = (message: string) => {
@@ -938,6 +938,42 @@ export default function App() {
     });
   };
 
+  const resizePromoImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+      };
+    });
+  };
+
   const handleImageUpload = async (file: File) => {
     try {
       const resized = await resizeImage(file);
@@ -946,81 +982,6 @@ export default function App() {
       console.error("Erro no processamento da imagem", err);
     }
   };
-
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state) {
-        if (event.state.screen) {
-          setCurrentScreen(event.state.screen);
-        }
-        
-        // Sincronizar sub-estados se existirem no histórico
-        if ('selectedSize' in event.state) setSelectedSize(event.state.selectedSize);
-        if ('selectedTubSize' in event.state) setSelectedTubSize(event.state.selectedTubSize);
-        if ('selectedMilkshakeSize' in event.state) setSelectedMilkshakeSize(event.state.selectedMilkshakeSize);
-      } else {
-        setCurrentScreen('home');
-        setSelectedSize(null);
-        setSelectedTubSize(null);
-        setSelectedMilkshakeSize(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    // Initial state
-    if (!window.history.state) {
-      window.history.replaceState({ 
-        screen: currentScreen,
-        selectedSize: null,
-        selectedTubSize: null,
-        selectedMilkshakeSize: null
-      }, '');
-    }
-
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  useEffect(() => {
-    const currentState = window.history.state;
-    const hasChanged = !currentState || 
-                     currentState.screen !== currentScreen || 
-                     currentState.selectedSize !== selectedSize ||
-                     currentState.selectedTubSize !== selectedTubSize ||
-                     currentState.selectedMilkshakeSize !== selectedMilkshakeSize;
-
-    if (hasChanged) {
-      // Evitar empilhar admin desnecessário
-      if (currentScreen !== 'admin' || isAdminLoggedIn) {
-        window.history.pushState({ 
-          screen: currentScreen,
-          selectedSize,
-          selectedTubSize,
-          selectedMilkshakeSize
-        }, '');
-      }
-    }
-  }, [currentScreen, selectedSize, selectedTubSize, selectedMilkshakeSize, isAdminLoggedIn]);
-
-  useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash;
-      if (hash === '#admin') {
-        setCurrentScreen('admin');
-      } else if (hash.startsWith('#track/')) {
-        const orderId = hash.split('/')[1];
-        if (orderId) {
-          setPublicTrackingOrderId(orderId);
-          setCurrentScreen('home'); // Just in case, though public tracker will override
-        }
-      }
-    };
-
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    trackVisit(); // Track visitor when app starts
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
 
   const fetchProducts = async () => {
     try {
@@ -1033,24 +994,13 @@ export default function App() {
   };
 
   const fetchOrders = async () => {
-    setIsSyncing(true);
     try {
       const res = await axios.get('/api/admin/orders', {
         headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
       });
       setOrders(res.data);
-      setLastSync(new Date());
-      setDatabaseConnected(true);
     } catch (err) {
       console.error("Error fetching orders:", err);
-      setDatabaseConnected(false);
-      if (axios.isAxiosError(err) && err.response?.status === 401) {
-        handleLogout();
-        setToast({ message: "Sessão expirada. Faça login novamente.", visible: true });
-        setTimeout(() => setToast({ message: '', visible: false }), 4000);
-      }
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -1060,32 +1010,6 @@ export default function App() {
       setSettings(res.data);
     } catch (err) {
       console.error("Error fetching settings:", err);
-    }
-  };
-
-  const fetchAnalytics = async () => {
-    if (!isAdminLoggedIn) return;
-    try {
-      const res = await axios.get('/api/analytics/stats', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
-      });
-      setAnalyticsStats(res.data);
-    } catch (err) {
-      console.error("Error fetching analytics:", err);
-    }
-  };
-
-  const trackVisit = async () => {
-    try {
-      // Check if session visit tracked today
-      const lastVisit = localStorage.getItem('amarena_last_visit');
-      const today = new Date().toISOString().split('T')[0];
-      if (lastVisit !== today) {
-        await axios.post('/api/analytics/visit');
-        localStorage.setItem('amarena_last_visit', today);
-      }
-    } catch (err) {
-      console.warn("Analytics visit tracking failed", err);
     }
   };
 
@@ -1296,7 +1220,7 @@ export default function App() {
           <div className="flex flex-col items-center no-print bg-[#fff9f5]/50 min-h-screen">
       {/* Header */}
       <header className="relative w-full bg-amarena-dark-red pt-8 pb-12 px-6 shadow-[0_10px_30px_rgba(150,18,29,0.3)] mb-8 overflow-visible border-b border-white/5">
-        <div className="flex items-start max-w-lg mx-auto relative z-30 w-full">
+        <div className="flex items-start max-w-3xl mx-auto relative z-30 w-full">
           <Logo />
           <button 
             onClick={() => setCurrentScreen('checkout')}
@@ -1320,7 +1244,7 @@ export default function App() {
             
             {/* Store Closed Notice */}
             {settings?.isStoreOpen === false && (
-              <div className="w-full px-5 max-w-lg mb-6 sticky top-2 z-[60]">
+              <div className="w-full px-5 max-w-3xl mb-6 sticky top-2 z-[60]">
                  <div className="bg-amarena-red text-white p-4 rounded-2xl shadow-xl flex items-center gap-4 animate-bounce">
                     <div className="bg-white/20 p-2 rounded-xl">
                        <X size={20} />
@@ -1334,7 +1258,7 @@ export default function App() {
             )}
 
             {/* Search Bar - Home */}
-            <div className="w-full px-5 max-w-lg mb-6 sticky top-2 z-40">
+            <div className="w-full px-5 max-w-3xl mb-6 sticky top-2 z-40">
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-400 group-focus-within:text-amarena-red transition-colors">
                   <Sliders size={18} />
@@ -1358,7 +1282,7 @@ export default function App() {
             </div>
             
             {searchQuery.trim() ? (
-              <div className="w-full px-5 max-w-lg space-y-4 mb-10 overflow-visible">
+              <div className="w-full px-5 max-w-3xl space-y-4 mb-10 overflow-visible">
                 <div className="flex justify-between items-center px-2 mb-2">
                   <h3 className="text-xl font-display font-bold text-stone-800 uppercase tracking-tight">Resultados</h3>
                   <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{products.filter(p => (p.active ?? true) && p.name.toLowerCase().includes(searchQuery.toLowerCase())).length} itens</span>
@@ -1383,7 +1307,15 @@ export default function App() {
                           <div className="flex items-center gap-4">
                             <div className="w-16 h-16 bg-stone-50 rounded-[20px] overflow-hidden flex-shrink-0 border border-stone-50">
                                 {product.image ? (
-                                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                  <img 
+                                    src={product.image} 
+                                    alt={product.name} 
+                                    className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform duration-300" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedImage({ src: product.image!, alt: product.name });
+                                    }}
+                                  />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-stone-200">
                                     <IceCream size={24} />
@@ -1412,7 +1344,7 @@ export default function App() {
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-2 gap-3 w-full px-5 max-w-lg"
+                className="grid grid-cols-2 gap-3 w-full px-5 max-w-3xl"
               >
                 {menuItems.map((item) => (
                   <motion.button
@@ -1566,12 +1498,46 @@ export default function App() {
             )}
 
               <div className="grid grid-cols-1 gap-5">
-                {settings?.activePromotionTitle && (
-                  <div className="bg-amarena-orange text-white p-6 rounded-[32px] shadow-lg mb-4">
-                    <h3 className="font-bold text-lg mb-1">{settings.activePromotionTitle}</h3>
-                    <p className="text-sm opacity-90">{settings.activePromotionBody}</p>
+                {settings?.activePromotionTitle && currentScreen === 'promos' && (
+                  <div 
+                    role="button"
+                    tabIndex={0}
+                    className="w-full text-left bg-amarena-orange text-white overflow-hidden rounded-[32px] shadow-lg mb-4 cursor-pointer transition-transform hover:scale-[1.02] active:scale-95 outline-none"
+                    onClick={() => {
+                      if (settings.activePromotionImage) {
+                        setShowPromoModal(true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        if (settings.activePromotionImage) {
+                          setShowPromoModal(true);
+                        }
+                      }
+                    }}
+                  >
+                    {settings.activePromotionImage ? (
+                      <div className="w-full aspect-square relative bg-stone-200">
+                         <img 
+                            src={settings.activePromotionImage} 
+                            alt={settings.activePromotionTitle}
+                            className="w-full h-full object-cover"
+                         />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+                         <div className="absolute bottom-0 left-0 p-6 w-full pointer-events-none">
+                           <h3 className="font-bold text-2xl mb-1 text-white">{settings.activePromotionTitle}</h3>
+                           <p className="text-sm text-stone-200">{settings.activePromotionBody}</p>
+                         </div>
+                      </div>
+                    ) : (
+                      <div className="p-6">
+                        <h3 className="font-bold text-xl mb-1">{settings.activePromotionTitle}</h3>
+                        <p className="text-sm opacity-90">{settings.activePromotionBody}</p>
+                      </div>
+                    )}
                   </div>
                 )}
+
                 {currentScreen === 'picole' && (
                   <div className="flex bg-stone-100/80 backdrop-blur-sm p-1 rounded-2xl mb-6 overflow-x-auto no-scrollbar border border-stone-200/50 shadow-inner">
                     {picoleSubcategories.map(sub => (
@@ -1616,9 +1582,13 @@ export default function App() {
                               <img 
                                 src={product.image} 
                                 loading="lazy"
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 cursor-pointer" 
                                 alt={product.name} 
-                                referrerPolicy="no-referrer" 
+                                referrerPolicy="no-referrer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedImage({ src: product.image!, alt: product.name });
+                                }}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-stone-200">
@@ -1645,35 +1615,6 @@ export default function App() {
                     ))}
                   </motion.div>
             </div>
-
-            <AnimatePresence>
-              {cart.length > 0 && (
-                <motion.div 
-                  initial={{ y: 100, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 100, opacity: 0 }}
-                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
-                >
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setCurrentScreen('checkout')}
-                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
-                        {cart.length}
-                      </div>
-                      <span className="text-sm">Ver Carrinho</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
-                       <ChevronRight size={20} />
-                    </div>
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         );
 
@@ -1691,31 +1632,9 @@ export default function App() {
                 >
                   <ChevronLeft size={24} />
                 </button>
-                <h2 className="text-xl font-bold tracking-tight text-center flex-1 pr-0">
+                <h2 className="text-xl font-bold tracking-tight text-center flex-1 pr-10">
                   {milkshakeCategory === 'milkshake' ? 'Milkshake' : 'Sundae'}
                 </h2>
-                <div className="relative">
-                  <motion.button 
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setCurrentScreen('checkout')}
-                    className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
-                  >
-                    <ShoppingCart size={24} />
-                    <AnimatePresence>
-                      {cart.length > 0 && (
-                        <motion.span 
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          key={cart.length}
-                          className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-purple shadow-sm"
-                        >
-                          {cart.length}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
-                </div>
               </div>
               
               {settings?.isStoreOpen === false && (
@@ -1843,35 +1762,6 @@ export default function App() {
                 );
               })()}
             </div>
-
-            <AnimatePresence>
-              {cart.length > 0 && (
-                <motion.div 
-                  initial={{ y: 100, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 100, opacity: 0 }}
-                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
-                >
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setCurrentScreen('checkout')}
-                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
-                        {cart.length}
-                      </div>
-                      <span className="text-sm">Ver Carrinho</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
-                       <ChevronRight size={20} />
-                    </div>
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         );
       }
@@ -1879,38 +1769,14 @@ export default function App() {
       case 'potePersonalizado': {
         return (
           <div className="animate-in fade-in duration-500 no-print flex flex-col min-h-screen bg-white">
-            <div className="bg-amarena-orange p-6 text-white flex items-center justify-between gap-4 sticky top-0 z-50">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => { setCurrentScreen('home'); setSelectedTubSize(null); setTubFlavors(['', '', '']); }}
-                  className="hover:bg-white/20 p-2 rounded-xl"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <h2 className="text-xl font-bold tracking-tight">Monte seu Pote</h2>
-              </div>
-              <div className="relative">
-                <motion.button 
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setCurrentScreen('checkout')}
-                  className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
-                >
-                  <ShoppingCart size={24} />
-                  <AnimatePresence>
-                    {cart.length > 0 && (
-                      <motion.span 
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        key={cart.length}
-                        className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-orange shadow-sm"
-                      >
-                        {cart.length}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              </div>
+            <div className="bg-amarena-orange p-6 text-white flex items-center gap-4 sticky top-0 z-50">
+              <button 
+                onClick={() => { setCurrentScreen('home'); setSelectedTubSize(null); setTubFlavors(['', '', '']); }}
+                className="hover:bg-white/20 p-2 rounded-xl"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="text-xl font-bold tracking-tight">Monte seu Pote</h2>
             </div>
             
             <div className="flex-1 p-6 space-y-8 pb-20">
@@ -1992,35 +1858,6 @@ export default function App() {
                 );
               })()}
             </div>
-
-            <AnimatePresence>
-              {cart.length > 0 && (
-                <motion.div 
-                  initial={{ y: 100, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 100, opacity: 0 }}
-                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
-                >
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setCurrentScreen('checkout')}
-                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs">
-                        {cart.length}
-                      </div>
-                      <span className="text-sm">Ver Carrinho</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
-                       <ChevronRight size={20} />
-                    </div>
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         );
       }
@@ -2028,38 +1865,14 @@ export default function App() {
       case 'acai':
         return (
           <div className="animate-in fade-in duration-500 no-print flex flex-col min-h-screen bg-white">
-            <div className="bg-amarena-purple p-6 text-white flex items-center justify-between gap-4 sticky top-0 z-50">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => { setCurrentScreen('home'); setSelectedSize(null); }}
-                  className="hover:bg-white/20 p-2 rounded-xl"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <h2 className="text-xl font-bold tracking-tight">Açaí</h2>
-              </div>
-              <div className="relative">
-                <motion.button 
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setCurrentScreen('checkout')}
-                  className="bg-white/20 p-2 rounded-xl text-white shadow-sm active:scale-95 transition-all outline-none"
-                >
-                  <ShoppingCart size={24} />
-                  <AnimatePresence>
-                    {cart.length > 0 && (
-                      <motion.span 
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        key={cart.length}
-                        className="absolute -top-1 -right-1 bg-amarena-red text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-amarena-purple shadow-sm"
-                      >
-                        {cart.length}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              </div>
+            <div className="bg-amarena-purple p-6 text-white flex items-center gap-4 sticky top-0 z-50">
+              <button 
+                onClick={() => { setCurrentScreen('home'); setSelectedSize(null); }}
+                className="hover:bg-white/20 p-2 rounded-xl"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="text-xl font-bold tracking-tight">Açaí</h2>
             </div>
             
             {settings?.isStoreOpen === false && (
@@ -2259,35 +2072,6 @@ export default function App() {
                  })()}
               </div>
             )}
-            <AnimatePresence>
-              {cart.length > 0 && (
-                <motion.div 
-                  initial={{ y: 100, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 100, opacity: 0 }}
-                  className="fixed bottom-6 left-0 right-0 px-6 z-50 pointer-events-none max-w-lg mx-auto"
-                >
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setCurrentScreen('checkout')}
-                    className="w-full bg-amarena-red text-white py-4 rounded-2xl shadow-2xl flex items-center justify-between px-6 font-bold pointer-events-auto border-2 border-white/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white text-amarena-red w-8 h-8 rounded-full flex items-center justify-center text-xs"
-                      >
-                        {cart.length}
-                      </div>
-                      <span className="text-sm">Ver Carrinho</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <span className="font-black text-lg">R$ {cart.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2)}</span>
-                       <ChevronRight size={20} />
-                    </div>
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         );
 
@@ -2428,31 +2212,9 @@ export default function App() {
                 {adminSection === 'dashboard' && (
                   <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                       <div className="flex flex-col">
-                          <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Painel de Controle</h2>
-                          {lastSync && (
-                            <p className="text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">
-                               <span className={databaseConnected === false ? 'text-red-500' : 'text-stone-400'}>
-                                  {databaseConnected === false ? 'Erro de Conexão' : 'Sincronizado'}: {lastSync.toLocaleTimeString('pt-BR')}
-                               </span>
-                               {isSyncing && <RefreshCw size={10} className="animate-spin text-amarena-purple" />}
-                            </p>
-                          )}
-                       </div>
-                       <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => {
-                              fetchOrders();
-                              fetchClosings();
-                              fetchProducts();
-                            }}
-                            className={`p-3 bg-white border border-stone-100 rounded-2xl text-stone-400 hover:text-amarena-purple transition-all ${isSyncing ? 'animate-spin' : ''}`}
-                            title="Atualizar Dados"
-                          >
-                            <RefreshCw size={20} />
-                          </button>
-                          <button 
-                            onClick={async () => {
+                       <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Painel de Controle</h2>
+                       <button 
+                         onClick={async () => {
                            const nextStatus = !(settings?.isStoreOpen ?? true);
                            const newSettings = { ...settings, isStoreOpen: nextStatus };
                            setSettings(newSettings);
@@ -2475,28 +2237,7 @@ export default function App() {
                          { (settings?.isStoreOpen ?? true) ? 'LOJA ABERTA' : 'LOJA FECHADA' }
                        </button>
                     </div>
-                  </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {analyticsStats && (
-                        <div className="md:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
-                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Visitas Hoje</p>
-                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.todayVisits}</p>
-                           </div>
-                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
-                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total de Visitas</p>
-                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalVisits}</p>
-                           </div>
-                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
-                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Pedidos</p>
-                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalOrders}</p>
-                           </div>
-                           <div className="bg-stone-50 border border-stone-100 p-4 rounded-2xl">
-                              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Clientes</p>
-                              <p className="text-2xl font-brand text-stone-800">{analyticsStats.totalClients}</p>
-                           </div>
-                        </div>
-                      )}
                       <button 
                         onClick={() => setAdminSection('orders')}
                         className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center hover:shadow-lg hover:border-amarena-red/10 transition-all group"
@@ -2513,78 +2254,25 @@ export default function App() {
                       </button>
                       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-stone-100 flex flex-col items-center text-center">
                         <p className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-1">Total Hoje</p>
-                        <p className="text-5xl font-display font-bold text-amarena-purple">R$ {orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString() && o.status !== 'cancelled').reduce((acc, curr) => acc + curr.total, 0).toFixed(0)}</p>
+                        <p className="text-5xl font-display font-bold text-amarena-purple">R$ {orders.filter(o => new Date(o.createdAt).getDate() === new Date().getDate()).reduce((acc, curr) => acc + curr.total, 0).toFixed(0)}</p>
                       </div>
-                    </div>
-
-                    {/* Recent Orders List */}
-                    <div className="mt-12">
-                       <div className="flex justify-between items-center mb-6">
-                          <h3 className="text-xl font-bold text-stone-800 uppercase tracking-tight">Atividade Recente</h3>
-                          <button 
-                            onClick={() => setAdminSection('orders')}
-                            className="text-xs font-black text-amarena-purple uppercase tracking-widest hover:underline"
-                          >
-                            Ver todos os pedidos
-                          </button>
-                       </div>
-                       <div className="space-y-4">
-                          {orders.slice(0, 5).map(order => (
-                             <div key={order.id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
-                                <div className="flex items-center gap-4">
-                                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 
-                                      order.status === 'confirmed' ? 'bg-blue-100 text-blue-600' : 
-                                      order.status === 'completed' ? 'bg-green-100 text-green-600' : 
-                                      'bg-stone-100 text-stone-400'
-                                   }`}>
-                                      <History size={20} />
-                                   </div>
-                                   <div>
-                                      <p className="text-xs font-black text-stone-300 uppercase tracking-widest">#{order.id?.slice(-6) || '---'}</p>
-                                      <p className="font-bold text-stone-800 capitalize">{order.clientInfo?.name || 'Cliente'}</p>
-                                   </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                   <div className="text-right">
-                                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Total</p>
-                                      <p className="font-bold text-stone-800">R$ {order.total.toFixed(2)}</p>
-                                   </div>
-                                   <div className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' :
-                                      order.status === 'confirmed' ? 'bg-blue-100 text-blue-600' :
-                                      order.status === 'completed' ? 'bg-green-100 text-green-600' :
-                                      'bg-stone-100 text-stone-400'
-                                   }`}>
-                                      {order.status}
-                                   </div>
-                                </div>
-                             </div>
-                          ))}
-                          {orders.length === 0 && (
-                            <div className="text-center p-12 bg-stone-50 rounded-[32px] border-2 border-dashed border-stone-200">
-                               <p className="text-stone-400 font-bold">Nenhum pedido encontrado no banco de dados.</p>
-                               <button 
-                                 onClick={() => fetchOrders()}
-                                 className="mt-4 text-xs font-black text-amarena-purple uppercase tracking-widest underline"
-                               >
-                                  Tentar Sincronizar Agora
-                               </button>
-                            </div>
-                          )}
-                       </div>
                     </div>
                   </div>
                 )}
 
                 {adminSection === 'daily-closing' && (
                   <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="hidden print:block mb-10 text-center border-b pb-8">
+                       <h1 className="font-brand text-4xl text-amarena-red mb-2 italic">Amarena Sorvetes</h1>
+                       <h2 className="text-xl font-bold uppercase tracking-widest text-stone-800">Relatório de Fechamento de Caixa</h2>
+                       <p className="text-stone-500 mt-2">Data: {new Date().toLocaleDateString('pt-BR')} | Hora: {new Date().toLocaleTimeString('pt-BR')}</p>
+                    </div>
+
                     <div className="flex justify-between items-center mb-8 no-print">
                        <h2 className="text-3xl font-display font-bold text-stone-800 uppercase tracking-tight">Fechamento de Caixa</h2>
                        <button 
                          onClick={() => {
-                           if (!operatorName) return alert("Por favor, informe seu nome para o fechamento.");
-                           setToast({ message: 'Preparando impressão 80mm...', visible: true });
+                           setToast({ message: 'Preparando impressão...', visible: true });
                            setTimeout(() => {
                              window.print();
                              setToast({ message: '', visible: false });
@@ -2592,11 +2280,11 @@ export default function App() {
                          }}
                          className="flex items-center gap-2 px-6 py-3 bg-stone-800 text-white rounded-2xl font-bold text-sm shadow-xl shadow-stone-200 active:scale-95 transition-all"
                        >
-                         <Printer size={18} /> Imprimir Cupom 80mm
+                         <Printer size={18} /> Imprimir Relatório
                        </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 no-print">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                        <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
                           <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total em Vendas</p>
                           <p className="text-3xl font-brand text-amarena-purple">
@@ -2715,46 +2403,10 @@ export default function App() {
                     {/* History */}
                     {closings.length > 0 && (
                       <div className="mt-12 no-print">
-                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-stone-800 uppercase tracking-tight">
-                               {showFullClosingHistory ? 'Histórico Completo' : 'Fechamento de Hoje'}
-                            </h3>
-                            <button 
-                              onClick={() => setShowFullClosingHistory(!showFullClosingHistory)}
-                              className="text-xs font-black text-amarena-purple uppercase tracking-widest px-4 py-2 bg-amarena-purple/5 rounded-xl hover:bg-amarena-purple/10 transition-all flex items-center gap-2"
-                            >
-                               {showFullClosingHistory ? 'Ver Apenas Hoje' : 'Ver Todos'}
-                               <History size={14} />
-                            </button>
-                         </div>
+                         <h3 className="text-xl font-bold text-stone-800 mb-6 uppercase tracking-tight">Últimos Fechamentos</h3>
                          <div className="space-y-4">
-                            {(() => {
-                               const filtered = closings.filter((c: any) => {
-                                 if (showFullClosingHistory) return true;
-                                 return new Date(c.date).toDateString() === new Date().toDateString();
-                               });
-                               
-                               if (filtered.length === 0) {
-                                 return (
-                                   <div className="bg-stone-50 border border-dashed border-stone-200 p-8 rounded-[28px] text-center">
-                                      <History className="mx-auto text-stone-300 mb-2" size={32} />
-                                      <p className="text-stone-400 font-bold text-sm uppercase tracking-widest">
-                                        {showFullClosingHistory ? 'Nenhum fechamento registrado' : 'Nenhum fechamento hoje'}
-                                      </p>
-                                      {!showFullClosingHistory && (
-                                        <button 
-                                          onClick={() => setShowFullClosingHistory(true)}
-                                          className="mt-4 text-[10px] font-black text-amarena-purple uppercase tracking-widest underline decoration-amarena-purple/30 underline-offset-4"
-                                        >
-                                          Ver Histórico Completo
-                                        </button>
-                                      )}
-                                   </div>
-                                 );
-                               }
-
-                               return filtered.map((c: any) => (
-                                 <div key={c._id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-all">
+                            {closings.map((c: any) => (
+                               <div key={c._id} className="bg-white p-6 rounded-[28px] border border-stone-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-all">
                                   <div className="flex items-center gap-4">
                                      <div className="w-12 h-12 bg-stone-100 rounded-2xl flex items-center justify-center text-stone-400">
                                         <History size={20} />
@@ -2775,8 +2427,7 @@ export default function App() {
                                      </div>
                                   </div>
                                </div>
-                             ));
-                           })()}
+                            ))}
                          </div>
                       </div>
                     )}
@@ -2857,7 +2508,7 @@ export default function App() {
                     </div>
 
                     {/* Navigation Tabs */}
-                    <div className="flex bg-stone-100 p-1.5 rounded-[20px] mb-8 gap-1 w-full max-w-lg">
+                    <div className="flex bg-stone-100 p-1.5 rounded-[20px] mb-8 gap-1 w-full max-w-3xl">
                       <button
                         onClick={() => { setOrdersTab('active'); setOrdersSearchTerm(''); }}
                         className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'active' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
@@ -2868,7 +2519,7 @@ export default function App() {
                         onClick={() => { setOrdersTab('completed'); setOrdersSearchTerm(''); }}
                         className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${ordersTab === 'completed' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
                       >
-                        Concluídos ({orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled') && new Date(o.createdAt).toDateString() === new Date().toDateString()).length})
+                        Concluídos ({orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled')).length})
                       </button>
                       <button
                         onClick={() => { setOrdersTab('archived'); setOrdersSearchTerm(''); }}
@@ -2878,58 +2529,54 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Search Field for Archive */}
-                    {ordersTab === 'archived' && (
-                      <div className="mb-6 relative">
-                        <input 
-                          type="text" 
-                          placeholder="Buscar por nome, telefone, nº do pedido, produto ou valor..."
-                          className="w-full pl-12 pr-4 py-3 bg-stone-50 rounded-2xl border border-stone-100 focus:border-amarena-purple/50 focus:bg-white outline-none text-stone-800 placeholder-stone-400 transition-all font-semibold text-sm"
-                          value={ordersSearchTerm}
-                          onChange={e => setOrdersSearchTerm(e.target.value)}
-                        />
-                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                        {ordersSearchTerm && (
-                          <button 
-                            onClick={() => setOrdersSearchTerm('')} 
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-stone-400 hover:text-stone-600"
-                          >
-                            Limpar
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    {/* Search Field for Orders */}
+                    <div className="mb-6 relative">
+                      <input 
+                        type="text" 
+                        placeholder="Buscar por nome, telefone, nº do pedido, produto ou valor..."
+                        className="w-full pl-12 pr-4 py-3 bg-stone-50 rounded-2xl border border-stone-100 focus:border-amarena-purple/50 focus:bg-white outline-none text-stone-800 placeholder-stone-400 transition-all font-semibold text-sm shadow-sm"
+                        value={ordersSearchTerm}
+                        onChange={e => setOrdersSearchTerm(e.target.value)}
+                      />
+                      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                      {ordersSearchTerm && (
+                        <button 
+                          onClick={() => setOrdersSearchTerm('')} 
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-stone-400 hover:text-stone-600 px-2 py-1 bg-stone-200/50 rounded-md"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
 
                     {/* Master Orders List */}
                     <div className="space-y-4">
                       {(() => {
-                        const isToday = (date: string | Date) => new Date(date).toDateString() === new Date().toDateString();
                         const activeList = orders.filter(o => !o.archived && o.status !== 'completed' && o.status !== 'cancelled');
-                        const completedList = orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled') && isToday(o.createdAt));
-                        const archivedList = orders.filter(o => {
-                          if (!ordersSearchTerm) {
-                            // Show orders that are archived OR finished orders from different days
-                            const isOldFinished = (o.status === 'completed' || o.status === 'cancelled') && !isToday(o.createdAt);
-                            return o.archived === true || isOldFinished;
-                          }
-                          const term = ordersSearchTerm.toLowerCase();
-                          const idMatch = o.id?.toLowerCase().includes(term);
-                          const nameMatch = o.clientInfo?.name?.toLowerCase().includes(term);
-                          const phoneMatch = o.clientInfo?.phone?.toLowerCase().includes(term);
-                          const addressMatch = o.clientInfo?.address?.toLowerCase().includes(term);
-                          const valueMatch = o.total?.toString().includes(term);
-                          const itemsMatch = o.items?.some(it => it.name?.toLowerCase().includes(term));
-                          const paymentMatch = o.paymentMethod?.toLowerCase().includes(term);
-                          const statusMatch = o.status?.toLowerCase().includes(term);
-                          
-                          return idMatch || nameMatch || phoneMatch || addressMatch || valueMatch || itemsMatch || paymentMatch || statusMatch;
-                        });
+                        const completedList = orders.filter(o => !o.archived && (o.status === 'completed' || o.status === 'cancelled'));
+                        const archivedList = orders.filter(o => o.archived === true);
 
-                        const currentList = ordersTab === 'active' 
+                        let currentList = ordersTab === 'active' 
                           ? activeList 
                           : ordersTab === 'completed' 
                             ? completedList 
                             : archivedList;
+
+                        if (ordersSearchTerm) {
+                          const term = ordersSearchTerm.toLowerCase();
+                          currentList = currentList.filter(o => {
+                            const idMatch = o.id?.toLowerCase().includes(term);
+                            const nameMatch = o.clientInfo?.name?.toLowerCase().includes(term);
+                            const phoneMatch = o.clientInfo?.phone?.toLowerCase().includes(term);
+                            const addressMatch = o.clientInfo?.address?.toLowerCase().includes(term);
+                            const valueMatch = o.total?.toString().includes(term);
+                            const itemsMatch = o.items?.some(it => it.name?.toLowerCase().includes(term));
+                            const paymentMatch = o.paymentMethod?.toLowerCase().includes(term);
+                            const statusMatch = o.status?.toLowerCase().includes(term);
+                            
+                            return idMatch || nameMatch || phoneMatch || addressMatch || valueMatch || itemsMatch || paymentMatch || statusMatch;
+                          });
+                        }
 
                         if (currentList.length === 0) {
                           return (
@@ -3101,19 +2748,6 @@ export default function App() {
                               >
                                 <Printer size={20} /> Imprimir
                               </button>
-                              {order.clientInfo.deliveryType === 'delivery' && (
-                                <button 
-                                  onClick={() => {
-                                    const url = `${window.location.origin}/#track/${order.id}`;
-                                    navigator.clipboard.writeText(url);
-                                    setToast({ message: "Link de rastreio copiado!", visible: true });
-                                    setTimeout(() => setToast({ message: '', visible: false }), 3000);
-                                  }}
-                                  className="flex-1 md:flex-none p-4 bg-purple-100 text-amarena-purple rounded-2xl hover:bg-purple-200 transition-all font-bold flex items-center justify-center gap-2 text-sm"
-                                >
-                                  <MapPin size={20} /> Link Rastreio
-                                </button>
-                              )}
                             </div>
                           </div>
                         ));
@@ -3237,6 +2871,29 @@ export default function App() {
                         <div className="space-y-4 mb-8">
                            <input type="text" placeholder="Título da Promoção (ex: Semana do Sorvete)" value={settings?.activePromotionTitle || ''} onChange={e => setSettings({...settings, activePromotionTitle: e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" />
                            <textarea placeholder="Descrição da Promoção" value={settings?.activePromotionBody || ''} onChange={e => setSettings({...settings, activePromotionBody: e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" />
+                           <div className="flex flex-col gap-2">
+                             <div className="flex gap-2">
+                               <input type="text" placeholder="URL da Imagem de Destaque (Opcional)" value={settings?.activePromotionImage || ''} onChange={e => setSettings({...settings, activePromotionImage: e.target.value})} className="w-full p-3 bg-stone-50 rounded-xl outline-none" />
+                               <label className="bg-stone-200 text-stone-600 px-4 py-3 rounded-xl font-bold cursor-pointer hover:bg-stone-300 transition-colors flex items-center justify-center whitespace-nowrap">
+                                 Upload
+                                 <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                                   if (e.target.files && e.target.files[0]) {
+                                     try {
+                                       const base64 = await resizePromoImage(e.target.files[0]);
+                                       setSettings({...settings, activePromotionImage: base64});
+                                     } catch (err) {
+                                       console.error(err);
+                                     }
+                                   }
+                                 }} />
+                               </label>
+                             </div>
+                             {settings?.activePromotionImage && settings.activePromotionImage.startsWith('data:image') && (
+                                <button onClick={() => setSettings({...settings, activePromotionImage: ''})} className="text-xs text-red-500 font-bold self-start uppercase tracking-widest hover:underline mt-1">
+                                  Remover Imagem
+                                </button>
+                             )}
+                           </div>
                         </div>
 
                         {/* Notificações (Ephemeral) */}
@@ -3672,10 +3329,28 @@ export default function App() {
                 <ShoppingBag className="text-primary" />
                 <h3 className="font-bold text-stone-800">Seu Pedido</h3>
               </div>
-              {cart.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center py-2 border-b border-stone-50 last:border-0 grow">
-                  <span className="text-stone-600 font-medium">{item.name}</span>
-                  <span className="font-bold text-stone-800 whitespace-nowrap ml-4">R$ {item.price.toFixed(2)}</span>
+              {cart.length === 0 ? (
+                <div className="text-center text-stone-400 py-4 text-sm font-medium">Seu carrinho está vazio</div>
+              ) : cart.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center py-3 border-b border-stone-50 last:border-0 grow">
+                  <span className="text-stone-600 font-medium pr-4">{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-stone-800 whitespace-nowrap">R$ {item.price.toFixed(2)}</span>
+                    <button 
+                      onClick={() => {
+                        const newCart = cart.filter((_, i) => i !== idx);
+                        setCart(newCart);
+                        if (newCart.length === 0) {
+                          setCurrentScreen('home');
+                          showToast('Carrinho vazio');
+                        }
+                      }}
+                      className="text-stone-300 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                      title="Remover item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
               {deliveryFee > 0 && (
@@ -3704,7 +3379,6 @@ export default function App() {
                   <p className="text-xs text-stone-400">Via Mercado Pago</p>
                 </div>
               </button>
-
               <button 
                 onClick={() => setPaymentMethod('pix')}
                 className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'pix' ? 'border-secondary bg-secondary/5' : 'border-stone-100 bg-white'}`}
@@ -3713,11 +3387,10 @@ export default function App() {
                   <QrCode size={24} />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-stone-800">PIX (Chave CNPJ)</p>
-                  <p className="text-xs text-stone-400">Transferência Manual</p>
+                  <p className="font-bold text-stone-800">PIX (Mercado Pago)</p>
+                  <p className="text-xs text-stone-400">Aprovação imediata</p>
                 </div>
               </button>
-
               <button 
                 onClick={() => setPaymentMethod('delivery_payment')}
                 className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'delivery_payment' ? 'border-amarena-green bg-amarena-green/5' : 'border-stone-100 bg-white'}`}
@@ -3735,18 +3408,59 @@ export default function App() {
             <div className="mt-8">
               {paymentMethod === 'pix' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-secondary/20 mb-6 text-center">
-                  <p className="text-stone-500 text-sm mb-3 font-medium">Chave PIX CNPJ:</p>
-                  <div className="bg-stone-50 p-4 rounded-2xl font-mono font-bold text-stone-800 break-all mb-4 flex justify-between items-center text-xs">
-                    {pixKey}
-                    <button onClick={() => { navigator.clipboard.writeText(pixKey); setPixCopied(true); setTimeout(()=>setPixCopied(false), 2000); }} className="text-secondary p-2">
-                      {pixCopied ? <Check size={18} /> : <Copy size={18} />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-stone-400 leading-tight">Ao clicar em confirmar, seu pedido será enviado para nossa cozinha. O pagamento deve ser feito agora.</p>
-                  <Button variant="secondary" loading={loading} className="w-full mt-6 py-4 text-lg" onClick={() => finishOrder('PIX Manual')}>Enviar Pedido via PIX</Button>
+                  {!mpPixData ? (
+                    <>
+                      <p className="text-stone-500 text-sm mb-3 font-medium">Gere o QR Code para pagar via PIX.</p>
+                      <Button variant="secondary" loading={loading} className="w-full py-4 text-lg" onClick={async () => {
+                        try {
+                          setLoading(true);
+                          const res = await axios.post('/api/payment/pix', {
+                            transaction_amount: total,
+                            description: `Pedido Amarena - ${clientName}`,
+                            email: 'cliente@amarena.com' // Mock email
+                          });
+                          setMpPixData(res.data);
+                          
+                          // Start polling
+                          const interval = setInterval(async () => {
+                            try {
+                              const statusRes = await axios.get(`/api/payment/pix/${res.data.payment_id}`);
+                              if (statusRes.data.status === 'approved') {
+                                clearInterval(interval);
+                                setPixPollingInterval(null);
+                                finishOrder('PIX');
+                              }
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }, 3000);
+                          setPixPollingInterval(interval);
+                        } catch (err) {
+                          console.error(err);
+                          showToast("Erro ao gerar PIX");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}>Gerar QR Code PIX</Button>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <p className="text-stone-500 font-bold mb-4">Escaneie o QR Code para pagar</p>
+                      <div className="bg-stone-50 p-4 rounded-3xl mb-6 shadow-inner">
+                        <img src={`data:image/jpeg;base64,${mpPixData.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 mix-blend-multiply" />
+                      </div>
+                      <p className="text-stone-500 text-xs mb-2">Pix Copia e Cola:</p>
+                      <div className="bg-stone-50 p-4 rounded-2xl font-mono font-bold text-stone-800 break-all mb-4 flex justify-between items-center text-[10px] w-full max-w-sm">
+                        <span className="truncate flex-1">{mpPixData.qr_code}</span>
+                        <button onClick={() => { navigator.clipboard.writeText(mpPixData.qr_code); setPixCopied(true); setTimeout(()=>setPixCopied(false), 2000); }} className="text-secondary p-2 ml-2 flex-shrink-0">
+                          {pixCopied ? <Check size={18} /> : <Copy size={18} />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-secondary animate-pulse font-bold mt-2">Aguardando pagamento...</p>
+                    </div>
+                  )}
                 </motion.div>
               )}
-
               {paymentMethod === 'card' && (
                 <Button loading={loading} onClick={handleCardPayment} className="w-full py-5 text-xl shadow-xl shadow-primary/20">Finalizar com Cartão</Button>
               )}
@@ -3862,7 +3576,7 @@ export default function App() {
       {/* Dynamic Animated Background Moved inside container */}
       
       {/* Actual App Container */}
-      <div className={`w-full ${currentScreen === 'admin' ? 'h-screen' : 'max-w-2xl min-h-screen relative'} bg-white/15 backdrop-blur-[2px] shadow-premium relative overflow-x-hidden transition-all duration-500 border-x border-amarena/10 z-10`}>
+      <div className={`w-full ${currentScreen === 'admin' ? 'h-screen' : 'max-w-4xl min-h-screen relative'} bg-white/15 backdrop-blur-[2px] shadow-premium relative overflow-x-hidden transition-all duration-500 border-x border-amarena/10 z-10 no-print`}>
         <AnimatedBackground />
         <AnimatePresence mode="wait">
           <motion.div
@@ -3922,53 +3636,71 @@ export default function App() {
 
       {/* Actual Hidden Ticket for Browser Printing */}
       <OrderTicket order={printOrder} />
-      <DailyClosingTicket orders={orders} operatorName={operatorName} />
 
       <AnimatePresence>
-        {publicTrackingOrderId && (
+        {showPromoModal && settings?.activePromotionImage && (
+          <motion.div 
+            key="promo-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ zIndex: 999999 }}
+            className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowPromoModal(false)}
+          >
+            <motion.div 
+              key="promo-modal-content"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-stone-900 rounded-[32px] overflow-hidden w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative w-full overflow-hidden bg-stone-800 flex items-center justify-center flex-1">
+                <img 
+                  src={settings.activePromotionImage} 
+                  alt={settings.activePromotionTitle}
+                  className="w-full h-auto max-h-[75vh] object-contain"
+                />
+                <button 
+                  onClick={() => setShowPromoModal(false)}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors backdrop-blur-md"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 text-center shrink-0">
+                <h3 className="font-bold text-2xl mb-2 text-white">{settings.activePromotionTitle}</h3>
+                <p className="text-stone-300 text-sm">{settings.activePromotionBody}</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        
+        {/* Fullscreen Image Modal */}
+        {selectedImage && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-stone-50 flex flex-col"
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out"
           >
-             <div className="p-6 bg-white border-b border-stone-100 flex items-center justify-between no-print">
-                <div className="flex items-center gap-3">
-                   <div className="bg-amarena-red p-2.5 rounded-2xl text-white shadow-lg shadow-amarena-red/20"><IceCream size={24} /></div>
-                   <div>
-                      <h2 className="font-brand text-2xl text-stone-800 italic">Amarena Tracking</h2>
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Acompanhe seu pedido em tempo real</p>
-                   </div>
-                </div>
-                <button 
-                  onClick={() => {
-                    setPublicTrackingOrderId(null);
-                    window.location.hash = '';
-                  }}
-                  className="p-3 bg-stone-50 rounded-2xl text-stone-500 hover:bg-stone-100 transition-all hover:rotate-90"
-                >
-                   <X size={20} />
-                </button>
-             </div>
-             <div className="flex-1 overflow-y-auto p-4 md:p-10 w-full bg-stone-50/50">
-                <div className="max-w-xl mx-auto">
-                   <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm mb-6 flex justify-between items-center">
-                      <div>
-                         <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-1">Senha do Pedido</p>
-                         <p className="text-2xl font-brand text-amarena-purple uppercase">#{publicTrackingOrderId.slice(-4)}</p>
-                      </div>
-                      <div className="text-right">
-                         <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-1">Status Atual</p>
-                         <p className="font-bold text-stone-800 text-sm">Monitorando via GPS</p>
-                      </div>
-                   </div>
-                   <OrderLiveTracker orderId={publicTrackingOrderId} />
-                   
-                   <div className="mt-12 text-center text-stone-300">
-                      <p className="text-[10px] font-black uppercase tracking-[0.3em]">Amarena Sorvetes — Passos MG</p>
-                   </div>
-                </div>
-             </div>
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
+            >
+              <X size={32} />
+            </button>
+            <motion.img 
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={selectedImage.src}
+              alt={selectedImage.alt}
+              className="w-auto h-auto max-w-[95vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
           </motion.div>
         )}
       </AnimatePresence>

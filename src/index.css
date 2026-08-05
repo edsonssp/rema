@@ -27,6 +27,9 @@ body {
 
 @layer utilities {
   @media print {
+    @page {
+      margin: 0;
+    }
     .no-print {
       display: none !important;
     }
