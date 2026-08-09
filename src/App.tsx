@@ -1182,8 +1182,43 @@ export default function App() {
   ];
 
   const acaiOptions = {
-    laranjas: ['Bolacha oreo triturada', 'Bombom Ouro branco', 'Bombom Sonho de valsa', 'Castanha de caju', 'Cereja', 'Disquete', 'Gotas de Chocolate'],
-    verdes: ['Banana', 'Beijinho cremoso', 'Cobertura de Chocolate', 'Cobertura de Morango', 'Granola', 'Leite condensado', 'Leite em Pó']
+    laranjas: [
+      'Bis',
+      'Bolacha Oreo triturada',
+      'Bombom Ouro Branco',
+      'Bombom Sonho de Valsa',
+      'Brigadeiro cremoso',
+      'Castanha de caju',
+      'Cereja',
+      'Disquete',
+      'Gotas de chocolate',
+      'Kiwi',
+      'Morango',
+      'Mousse de chocolate',
+      'Mousse de maracujá',
+      'Mousse de Ninho',
+      'Ovomaltine',
+      'Power Bol'
+    ],
+    verdes: [
+      'Amendoim',
+      'Banana',
+      'Beijinho cremoso',
+      'Chantilly',
+      'Cobertura de chocolate',
+      'Cobertura de morango',
+      'Granola',
+      'Leite condensado',
+      'Leite em pó',
+      'Mel',
+      'Paçoca',
+      'Polpa de morango',
+      'Sorvete de creme',
+      'Sorvete de Ninho trufado',
+      'Sorvete de Nutella',
+      'Sucrilhos',
+      'Uva'
+    ]
   };
 
   const paidAddons = [
@@ -1942,7 +1977,7 @@ export default function App() {
                               <div className="bg-amarena-orange text-white p-3 rounded-t-2xl text-center text-[10px] font-black tracking-widest uppercase">
                                  Laranjas ({countLaranjas}/{maxLaranjas})
                               </div>
-                              <div className="bg-amarena-orange/5 p-2 rounded-b-2xl space-y-2 border-x border-b border-amarena-orange/20">
+                              <div className="bg-amarena-orange/5 p-2 rounded-b-2xl space-y-2 border-x border-b border-amarena-orange/20 max-h-[480px] overflow-y-auto">
                                  {acaiOptions.laranjas.map(opt => {
                                    const isSelected = selections.includes(opt);
                                    return (
@@ -1968,7 +2003,7 @@ export default function App() {
                               <div className="bg-amarena-green text-white p-3 rounded-t-2xl text-center text-[10px] font-black tracking-widest uppercase">
                                  Verdes ({countVerdes}/{maxVerdes})
                               </div>
-                              <div className="bg-amarena-green/5 p-2 rounded-b-2xl space-y-2 border-x border-b border-amarena-green/20">
+                              <div className="bg-amarena-green/5 p-2 rounded-b-2xl space-y-2 border-x border-b border-amarena-green/20 max-h-[480px] overflow-y-auto">
                                  {acaiOptions.verdes.map(opt => {
                                    const isSelected = selections.includes(opt);
                                    return (
