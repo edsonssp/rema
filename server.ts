@@ -301,16 +301,20 @@ async function sendNotificationToPhone(phone: string, title: string, body: strin
       const db = await getDb();
       const { items, total, deliveryFee, paymentMethod, clientInfo } = req.body;
       const result = await db.collection("orders").insertOne({
-        items,
-        total,
-        deliveryFee,
-        paymentMethod,
-        clientInfo,
+        items: items || [],
+        total: Number(total) || 0,
+        deliveryFee: Number(deliveryFee) || 0,
+        paymentMethod: paymentMethod || "Não informado",
+        clientInfo: clientInfo || {},
         status: "pending",
-        createdAt: new Date()
+        archived: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
-      res.status(201).json({ id: result.insertedId });
+      console.log(`[Amarena] New order created in database with ID: ${result.insertedId.toString()}`);
+      res.status(201).json({ id: result.insertedId.toString() });
     } catch (err: unknown) {
+      console.error("[Amarena] Error creating order:", err);
       res.status(500).json({ error: String(err) });
     }
   });

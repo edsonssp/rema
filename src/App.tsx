@@ -659,6 +659,7 @@ export default function App() {
   const getInitialScreen = () => {
     const path = window.location.pathname;
     if (path === '/admin') return 'admin';
+    if (path === '/success') return 'success';
     const hash = window.location.hash.replace('#', '');
     const validScreens = ['home', 'sorvete', 'picole', 'potes', 'acai', 'promos', 'milkshake', 'potePersonalizado', 'whatsapp', 'admin', 'checkout', 'success', 'history'];
     if (validScreens.includes(hash)) return hash as any;
@@ -754,6 +755,8 @@ export default function App() {
     // Direct routing for admin access via URL path
     if (window.location.pathname === '/admin' || window.location.hash === '#admin') {
       setCurrentScreen('admin');
+    } else if (window.location.pathname === '/success' || window.location.hash === '#success') {
+      setCurrentScreen('success');
     }
     
     const registerToken = async () => {
@@ -1049,7 +1052,7 @@ export default function App() {
         fetchOrders();
         fetchClosings();
       }
-    }, 30000); // Every 30 seconds
+    }, 5000); // Every 5 seconds for rapid order sync
 
     return () => { 
       isMounted = false; 
@@ -2501,8 +2504,8 @@ export default function App() {
                           </button>
                         )}
 
-                        <button onClick={fetchOrders} className="p-2.5 bg-stone-100 rounded-xl text-stone-500 hover:bg-stone-200 transition-colors" title="Atualizar Pedidos">
-                          <History size={18} />
+                        <button onClick={fetchOrders} className="flex items-center gap-2 px-3 py-2.5 bg-stone-100 rounded-xl text-stone-600 hover:bg-stone-200 transition-colors text-xs font-bold" title="Atualizar Pedidos">
+                          <RefreshCcw size={16} /> Atualizar
                         </button>
                       </div>
                     </div>
@@ -3276,16 +3279,54 @@ export default function App() {
         };
 
         const handleCardPayment = async () => {
+          if (!clientName || !clientPhone) {
+            showToast("Preencha seu Nome e Telefone!");
+            return;
+          }
+          if (deliveryType === 'delivery' && (!address || !addressNumber || !neighborhood)) {
+            showToast("Preencha o endereço completo!");
+            return;
+          }
+          saveClientData();
+
           try {
             setLoading(true);
-            const res = await axios.post('/api/payment/create-preference', {
+            if (settings?.isStoreOpen === false) {
+              alert("Desculpe, a loja fechou enquanto você montava seu pedido.");
+              setLoading(false);
+              return;
+            }
+
+            // Save order in database first
+            const orderRes = await axios.post('/api/orders', {
               items: cart,
-              external_reference: `Order_${Date.now()}`
+              total: total,
+              deliveryFee: deliveryFee,
+              paymentMethod: 'Cartão de Crédito (Mercado Pago)',
+              clientInfo: {
+                name: clientName,
+                phone: clientPhone,
+                deliveryType,
+                address: deliveryType === 'delivery' ? `${address}, ${addressNumber} ${apartment ? `- Apt ${apartment}` : ''} ${neighborhood ? `- Bairro ${neighborhood}` : ''}` : 'Retirada na Sorveteria'
+              }
             });
-            window.location.href = res.data.init_point;
-          } catch {
-            console.error("Payment error");
-            alert("Erro ao iniciar pagamento.");
+
+            const createdOrderId = orderRes.data.id;
+            setLastOrderId(createdOrderId);
+
+            // Create Mercado Pago preference
+            const prefRes = await axios.post('/api/payment/create-preference', {
+              items: cart,
+              external_reference: createdOrderId
+            });
+
+            setCart([]);
+            setSelectedSize(null);
+            setSelections([]);
+            window.location.href = prefRes.data.init_point;
+          } catch (err: any) {
+            console.error("Payment error:", err);
+            alert("Erro ao iniciar pagamento com cartão.");
           } finally {
             setLoading(false);
           }
@@ -3412,23 +3453,61 @@ export default function App() {
                     <>
                       <p className="text-stone-500 text-sm mb-3 font-medium">Gere o QR Code para pagar via PIX.</p>
                       <Button variant="secondary" loading={loading} className="w-full py-4 text-lg" onClick={async () => {
+                        if (!clientName || !clientPhone) {
+                          showToast("Preencha seu Nome e Telefone!");
+                          return;
+                        }
+                        if (deliveryType === 'delivery' && (!address || !addressNumber || !neighborhood)) {
+                          showToast("Preencha o endereço completo!");
+                          return;
+                        }
+                        saveClientData();
+
                         try {
                           setLoading(true);
+                          if (settings?.isStoreOpen === false) {
+                            alert("Desculpe, a loja fechou enquanto você montava seu pedido.");
+                            setLoading(false);
+                            return;
+                          }
+
+                          // Save order in database first
+                          const orderRes = await axios.post('/api/orders', {
+                            items: cart,
+                            total: total,
+                            deliveryFee: deliveryFee,
+                            paymentMethod: 'PIX (Mercado Pago)',
+                            clientInfo: {
+                              name: clientName,
+                              phone: clientPhone,
+                              deliveryType,
+                              address: deliveryType === 'delivery' ? `${address}, ${addressNumber} ${apartment ? `- Apt ${apartment}` : ''} ${neighborhood ? `- Bairro ${neighborhood}` : ''}` : 'Retirada na Sorveteria'
+                            }
+                          });
+
+                          const createdOrderId = orderRes.data.id;
+                          setLastOrderId(createdOrderId);
+                          fetchUserOrders();
+
+                          // Generate PIX QR Code
                           const res = await axios.post('/api/payment/pix', {
                             transaction_amount: total,
                             description: `Pedido Amarena - ${clientName}`,
-                            email: 'cliente@amarena.com' // Mock email
+                            email: 'cliente@amarena.com'
                           });
                           setMpPixData(res.data);
                           
-                          // Start polling
+                          // Start polling for auto approval
                           const interval = setInterval(async () => {
                             try {
                               const statusRes = await axios.get(`/api/payment/pix/${res.data.payment_id}`);
                               if (statusRes.data.status === 'approved') {
                                 clearInterval(interval);
                                 setPixPollingInterval(null);
-                                finishOrder('PIX');
+                                setCurrentScreen('success');
+                                setCart([]);
+                                setSelectedSize(null);
+                                setSelections([]);
                               }
                             } catch (e) {
                               console.error(e);
@@ -3457,6 +3536,17 @@ export default function App() {
                         </button>
                       </div>
                       <p className="text-xs text-secondary animate-pulse font-bold mt-2">Aguardando pagamento...</p>
+                      <button
+                        onClick={() => {
+                          setCurrentScreen('success');
+                          setCart([]);
+                          setSelectedSize(null);
+                          setSelections([]);
+                        }}
+                        className="mt-6 w-full py-4 bg-amarena-green text-white font-bold rounded-2xl shadow-lg hover:brightness-110 transition-all text-sm uppercase tracking-wider"
+                      >
+                        Concluir e Acompanhar Pedido
+                      </button>
                     </div>
                   )}
                 </motion.div>
