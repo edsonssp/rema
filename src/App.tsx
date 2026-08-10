@@ -648,6 +648,8 @@ type AppSettings = {
   milkshake?: Record<string, number>;
   potePersonalizado?: Record<string, number>;
   acaiAddons?: string[];
+  acaiLaranjas?: string[];
+  acaiVerdes?: string[];
   milkshakeAddons?: string[];
   deliveryFee?: number;
   activePromotionTitle?: string;
@@ -731,6 +733,8 @@ export default function App() {
   // New States for UX
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const [newVerdeInput, setNewVerdeInput] = useState('');
+  const [newLaranjaInput, setNewLaranjaInput] = useState('');
   
   // Login State
   const [adminUser, setAdminUser] = useState('');
@@ -1181,44 +1185,47 @@ export default function App() {
     { id: 'G800', label: 'G (800ml)', price: settings?.acai?.['G800'] || 48.90, rules: '3 verdes + 2 laranjas', icon: <Soup /> },
   ];
 
+  const defaultLaranjas = [
+    'Bis',
+    'Bolacha Oreo triturada',
+    'Bombom Ouro Branco',
+    'Bombom Sonho de Valsa',
+    'Brigadeiro cremoso',
+    'Castanha de caju',
+    'Cereja',
+    'Disquete',
+    'Gotas de chocolate',
+    'Morango',
+    'Mousse de chocolate',
+    'Mousse de maracujá',
+    'Mousse de Ninho',
+    'Ovomaltine',
+    'Power Bol'
+  ];
+
+  const defaultVerdes = [
+    'Amendoim',
+    'Banana',
+    'Beijinho cremoso',
+    'Chantilly',
+    'Cobertura de chocolate',
+    'Cobertura de morango',
+    'Granola',
+    'Leite condensado',
+    'Leite em pó',
+    'Mel',
+    'Paçoca',
+    'Polpa de morango',
+    'Sorvete de creme',
+    'Sorvete de Ninho trufado',
+    'Sorvete de Nutella',
+    'Sucrilhos',
+    'Uva'
+  ];
+
   const acaiOptions = {
-    laranjas: [
-      'Bis',
-      'Bolacha Oreo triturada',
-      'Bombom Ouro Branco',
-      'Bombom Sonho de Valsa',
-      'Brigadeiro cremoso',
-      'Castanha de caju',
-      'Cereja',
-      'Disquete',
-      'Gotas de chocolate',
-      'Kiwi',
-      'Morango',
-      'Mousse de chocolate',
-      'Mousse de maracujá',
-      'Mousse de Ninho',
-      'Ovomaltine',
-      'Power Bol'
-    ],
-    verdes: [
-      'Amendoim',
-      'Banana',
-      'Beijinho cremoso',
-      'Chantilly',
-      'Cobertura de chocolate',
-      'Cobertura de morango',
-      'Granola',
-      'Leite condensado',
-      'Leite em pó',
-      'Mel',
-      'Paçoca',
-      'Polpa de morango',
-      'Sorvete de creme',
-      'Sorvete de Ninho trufado',
-      'Sorvete de Nutella',
-      'Sucrilhos',
-      'Uva'
-    ]
+    laranjas: settings?.acaiLaranjas && settings.acaiLaranjas.length > 0 ? settings.acaiLaranjas : defaultLaranjas,
+    verdes: settings?.acaiVerdes && settings.acaiVerdes.length > 0 ? settings.acaiVerdes : defaultVerdes
   };
 
   const paidAddons = [
@@ -2968,10 +2975,10 @@ export default function App() {
                             onChange={e => setSettings({...settings, deliveryFee: parseFloat(e.target.value)})}
                           />
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-6 mt-8">
                           {(['acai', 'milkshake'] as const).map(cat => (
                             <div key={cat}>
-                              <label className="text-xs font-bold text-stone-500 uppercase">{cat === 'acai' ? 'Açaí' : 'Milkshake'}</label>
+                              <label className="text-xs font-bold text-stone-500 uppercase">{cat === 'acai' ? 'Adicionais Pagos no Açaí' : 'Adicionais no Milkshake'}</label>
                               <div className="mt-2 text-sm text-stone-600 bg-stone-50 p-4 rounded-xl">
                                 Selecione os adicionais:
                                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -2995,6 +3002,148 @@ export default function App() {
                               </div>
                             </div>
                           ))}
+                        </div>
+
+                        {/* Gerenciar Opções Gratuitas de Açaí (Laranjas e Verdes) */}
+                        <div className="border-t border-stone-200 pt-8 mt-8">
+                          <h3 className="font-bold text-stone-800 text-lg mb-2">
+                            Opções Gratuitas do Açaí (Laranjas e Verdes)
+                          </h3>
+                          <p className="text-xs text-stone-500 mb-6">
+                            Gerencie os acompanhamentos Laranjas e Verdes. Adicione novas opções ou clique no "X" para remover qualquer item.
+                          </p>
+
+                          <div className="space-y-6">
+                            {/* Opções Laranjas */}
+                            <div className="p-5 bg-amarena-orange/5 border border-amarena-orange/20 rounded-2xl">
+                              <h4 className="font-bold text-amarena-orange text-sm uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span>Opções Laranjas</span>
+                                <span className="text-xs text-stone-500 font-normal">({acaiOptions.laranjas.length} itens)</span>
+                              </h4>
+
+                              <div className="flex gap-2 mb-4">
+                                <input
+                                  type="text"
+                                  placeholder="Nova opção laranja..."
+                                  value={newLaranjaInput}
+                                  onChange={e => setNewLaranjaInput(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const val = newLaranjaInput.trim();
+                                      if (val && !acaiOptions.laranjas.includes(val)) {
+                                        const updated = [...acaiOptions.laranjas, val];
+                                        setSettings({ ...settings, acaiLaranjas: updated });
+                                        setNewLaranjaInput('');
+                                      }
+                                    }
+                                  }}
+                                  className="flex-1 p-3 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:border-amarena-orange"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = newLaranjaInput.trim();
+                                    if (val && !acaiOptions.laranjas.includes(val)) {
+                                      const updated = [...acaiOptions.laranjas, val];
+                                      setSettings({ ...settings, acaiLaranjas: updated });
+                                      setNewLaranjaInput('');
+                                    }
+                                  }}
+                                  className="px-5 py-3 bg-amarena-orange text-white rounded-xl font-bold text-xs uppercase hover:brightness-110 transition-all flex items-center gap-1"
+                                >
+                                  <Plus size={16} /> Adicionar
+                                </button>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-1">
+                                {acaiOptions.laranjas.map(item => (
+                                  <span
+                                    key={item}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-amarena-orange/30 text-amarena-orange font-bold text-xs rounded-xl shadow-xs"
+                                  >
+                                    {item}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = acaiOptions.laranjas.filter(i => i !== item);
+                                        setSettings({ ...settings, acaiLaranjas: updated });
+                                      }}
+                                      className="text-stone-400 hover:text-red-500 p-0.5 rounded-full hover:bg-stone-100 transition-colors"
+                                      title="Remover opção"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Opções Verdes */}
+                            <div className="p-5 bg-amarena-green/5 border border-amarena-green/20 rounded-2xl">
+                              <h4 className="font-bold text-amarena-green text-sm uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span>Opções Verdes</span>
+                                <span className="text-xs text-stone-500 font-normal">({acaiOptions.verdes.length} itens)</span>
+                              </h4>
+
+                              <div className="flex gap-2 mb-4">
+                                <input
+                                  type="text"
+                                  placeholder="Nova opção verde..."
+                                  value={newVerdeInput}
+                                  onChange={e => setNewVerdeInput(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const val = newVerdeInput.trim();
+                                      if (val && !acaiOptions.verdes.includes(val)) {
+                                        const updated = [...acaiOptions.verdes, val];
+                                        setSettings({ ...settings, acaiVerdes: updated });
+                                        setNewVerdeInput('');
+                                      }
+                                    }
+                                  }}
+                                  className="flex-1 p-3 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:border-amarena-green"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = newVerdeInput.trim();
+                                    if (val && !acaiOptions.verdes.includes(val)) {
+                                      const updated = [...acaiOptions.verdes, val];
+                                      setSettings({ ...settings, acaiVerdes: updated });
+                                      setNewVerdeInput('');
+                                    }
+                                  }}
+                                  className="px-5 py-3 bg-amarena-green text-white rounded-xl font-bold text-xs uppercase hover:brightness-110 transition-all flex items-center gap-1"
+                                >
+                                  <Plus size={16} /> Adicionar
+                                </button>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-1">
+                                {acaiOptions.verdes.map(item => (
+                                  <span
+                                    key={item}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-amarena-green/30 text-amarena-green font-bold text-xs rounded-xl shadow-xs"
+                                  >
+                                    {item}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = acaiOptions.verdes.filter(i => i !== item);
+                                        setSettings({ ...settings, acaiVerdes: updated });
+                                      }}
+                                      className="text-stone-400 hover:text-red-500 p-0.5 rounded-full hover:bg-stone-100 transition-colors"
+                                      title="Remover opção"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <button 
                           onClick={async () => {
