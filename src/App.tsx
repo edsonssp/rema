@@ -1018,8 +1018,11 @@ export default function App() {
   const fetchProducts = async () => {
     try {
       const res = await axios.get('/api/products');
-      setProducts(res.data);
-      preloadImages(res.data);
+      setProducts(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(res.data)) return prev;
+        preloadImages(res.data);
+        return res.data;
+      });
     } catch (err) {
       console.error("Error fetching products:", err);
     }
@@ -1048,7 +1051,7 @@ export default function App() {
       // Update known IDs
       newOrders.forEach((o: any) => knownOrderIdsRef.current.add(o.id));
       
-      setOrders(newOrders);
+      setOrders(prev => JSON.stringify(prev) === JSON.stringify(newOrders) ? prev : newOrders);
     } catch (err) {
       console.error("Error fetching orders:", err);
     }
@@ -1057,7 +1060,7 @@ export default function App() {
   const fetchSettings = async () => {
     try {
       const res = await axios.get('/api/settings');
-      setSettings(res.data);
+      setSettings(prev => JSON.stringify(prev) === JSON.stringify(res.data) ? prev : res.data);
     } catch (err) {
       console.error("Error fetching settings:", err);
     }
@@ -1068,7 +1071,7 @@ export default function App() {
       const res = await axios.get('/api/daily-closings', {
         headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
       });
-      setClosings(res.data);
+      setClosings(prev => JSON.stringify(prev) === JSON.stringify(res.data) ? prev : res.data);
     } catch (err) {
       console.error("Error fetching closings:", err);
     }
