@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getToken } from 'firebase/messaging';
 import { messaging } from './lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
@@ -712,6 +712,31 @@ export default function App() {
     };
   }, []);
 
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+
+  const playNotificationSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+      oscillator.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
+      
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {
+      console.error("Audio play failed", e);
+    }
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -1005,7 +1030,25 @@ export default function App() {
       const res = await axios.get('/api/admin/orders', {
         headers: { Authorization: `Bearer ${localStorage.getItem('amarena_admin_token')}` }
       });
-      setOrders(res.data);
+      const newOrders = res.data;
+      
+      // Check for new orders
+      if (knownOrderIdsRef.current.size > 0 && isAdminLoggedIn) {
+        let hasNew = false;
+        newOrders.forEach((o: any) => {
+          if (!knownOrderIdsRef.current.has(o.id)) {
+            hasNew = true;
+          }
+        });
+        if (hasNew) {
+          playNotificationSound();
+        }
+      }
+      
+      // Update known IDs
+      newOrders.forEach((o: any) => knownOrderIdsRef.current.add(o.id));
+      
+      setOrders(newOrders);
     } catch (err) {
       console.error("Error fetching orders:", err);
     }
@@ -1056,11 +1099,19 @@ export default function App() {
         fetchOrders();
         fetchClosings();
       }
-    }, 5000); // Every 5 seconds for rapid order sync
+    }, 5000);
 
-    return () => { 
-      isMounted = false; 
-      clearInterval(intervalId);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isAdminLoggedIn) {
+        fetchOrders();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+       isMounted = false;
+       clearInterval(intervalId);
+       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isAdminLoggedIn]);
 
