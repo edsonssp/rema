@@ -544,6 +544,22 @@ const OrderTicket = ({ order }: { order: Order | null }) => {
   );
 };
 
+const ProductSkeleton = () => (
+  <div className="bg-white p-5 rounded-[32px] shadow-sm border border-stone-100 flex items-center justify-between gap-4 animate-pulse">
+    <div className="flex items-center gap-4 w-full">
+      <div className="w-20 h-20 bg-stone-100 rounded-[24px] flex-shrink-0"></div>
+      <div className="flex flex-col flex-1 gap-2">
+        <div className="h-4 bg-stone-100 rounded-md w-3/4"></div>
+        <div className="h-3 bg-stone-100 rounded-md w-1/2"></div>
+      </div>
+    </div>
+    <div className="flex flex-col items-end gap-2 shrink-0">
+      <div className="h-4 bg-stone-100 rounded-md w-16"></div>
+      <div className="w-10 h-10 bg-stone-100 rounded-[14px]"></div>
+    </div>
+  </div>
+);
+
 const SplashScreen = () => (
   <div className="fixed inset-0 z-[100] bg-white/90 flex flex-col items-center justify-center backdrop-blur-sm">
     <motion.div 
@@ -737,11 +753,26 @@ export default function App() {
     }
   };
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const cached = localStorage.getItem('amarena_products_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch { return []; }
+  });
   const [orders, setOrders] = useState<Order[]>([]);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(() => {
+    try {
+      const cached = localStorage.getItem('amarena_settings_cache');
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
   const [loading, setLoading] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(() => {
+    return !localStorage.getItem('amarena_products_cache');
+  });
+  const [isFetchingProducts, setIsFetchingProducts] = useState(() => {
+    return !localStorage.getItem('amarena_products_cache');
+  });
   const [adminSection, setAdminSection] = useState<'dashboard' | 'products' | 'orders' | 'addons' | 'settings' | 'delivery' | 'daily-closing'>('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(!!localStorage.getItem('amarena_admin_token'));
   const [operatorName, setOperatorName] = useState('');
@@ -1021,10 +1052,13 @@ export default function App() {
       setProducts(prev => {
         if (JSON.stringify(prev) === JSON.stringify(res.data)) return prev;
         preloadImages(res.data);
+        try { localStorage.setItem('amarena_products_cache', JSON.stringify(res.data)); } catch {}
         return res.data;
       });
     } catch (err) {
       console.error("Error fetching products:", err);
+    } finally {
+      setIsFetchingProducts(false);
     }
   };
 
@@ -1060,7 +1094,11 @@ export default function App() {
   const fetchSettings = async () => {
     try {
       const res = await axios.get('/api/settings');
-      setSettings(prev => JSON.stringify(prev) === JSON.stringify(res.data) ? prev : res.data);
+      setSettings(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(res.data)) return prev;
+        try { localStorage.setItem('amarena_settings_cache', JSON.stringify(res.data)); } catch {}
+        return res.data;
+      });
     } catch (err) {
       console.error("Error fetching settings:", err);
     }
@@ -1080,18 +1118,15 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const load = async () => {
+    const load = () => {
       if (!isMounted) return;
-      try {
-        const promises = [fetchProducts(), fetchSettings()];
-        if (isAdminLoggedIn) {
-          promises.push(fetchOrders());
-          promises.push(fetchClosings());
-        }
-        await Promise.all(promises);
-      } finally {
-        setTimeout(() => setIsInitialLoading(false), 300); // Reduced delay for faster perceived loading
+      fetchProducts();
+      fetchSettings();
+      if (isAdminLoggedIn) {
+        fetchOrders();
+        fetchClosings();
       }
+      setTimeout(() => setIsInitialLoading(false), 800); // Fast perceived loading
     };
     load();
 
@@ -1386,7 +1421,13 @@ export default function App() {
                   <h3 className="text-xl font-display font-bold text-stone-800 uppercase tracking-tight">Resultados</h3>
                   <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{products.filter(p => (p.active ?? true) && p.name.toLowerCase().includes(searchQuery.toLowerCase())).length} itens</span>
                 </div>
-                {products
+                {isFetchingProducts ? (
+                  <div className="py-12 space-y-4">
+                    <ProductSkeleton />
+                    <ProductSkeleton />
+                    <ProductSkeleton />
+                  </div>
+                ) : products
                   .filter(p => (p.active ?? true) && (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.description?.toLowerCase().includes(searchQuery.toLowerCase())))
                   .length === 0 ? (
                     <div className="py-12 text-center text-stone-400 bg-white rounded-[32px] border border-dashed border-stone-200">
@@ -1656,7 +1697,15 @@ export default function App() {
                     animate="show"
                     className="grid grid-cols-1 gap-5"
                   >
-                    {products.filter(p => {
+                    {isFetchingProducts ? (
+                      <>
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                        <ProductSkeleton />
+                      </>
+                    ) : products.filter(p => {
                       const matchesCategory = currentScreen === 'sorvete' 
                         ? (p.category === 'sorvete' || p.category === 'potes')
                         : (p.category === currentScreen);
