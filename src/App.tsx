@@ -3634,9 +3634,29 @@ export default function App() {
                  <input type="text" placeholder="Nome Completo" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full p-4 bg-stone-50 rounded-2xl border border-stone-100 outline-none" />
                  <input type="tel" placeholder="Telefone (Obrigatório)" value={clientPhone} onChange={e => setClientPhone(e.target.value)} className="w-full p-4 bg-stone-50 rounded-2xl border border-stone-100 outline-none" required />
                  
-                 <div className="flex gap-2">
-                    <button onClick={() => setDeliveryType('delivery')} className={`flex-1 p-3 rounded-2xl font-bold ${deliveryType === 'delivery' ? 'bg-primary text-white' : 'bg-stone-100 text-stone-500'}`}>Entrega</button>
-                    <button onClick={() => setDeliveryType('pickup')} className={`flex-1 p-3 rounded-2xl font-bold ${deliveryType === 'pickup' ? 'bg-primary text-white' : 'bg-stone-100 text-stone-500'}`}>Retirar</button>
+                 <div className="grid grid-cols-2 gap-3 mb-2">
+                    <button 
+                      onClick={() => setDeliveryType('delivery')} 
+                      className={`flex flex-col items-center justify-center p-5 rounded-[24px] font-bold border-2 transition-all ${
+                        deliveryType === 'delivery' 
+                        ? 'bg-primary/10 border-primary text-primary shadow-sm' 
+                        : 'bg-white border-stone-200 text-stone-400 hover:border-primary/30'
+                      }`}
+                    >
+                      <Truck size={28} className="mb-2" />
+                      <span className="text-sm tracking-wide uppercase">Entrega</span>
+                    </button>
+                    <button 
+                      onClick={() => setDeliveryType('pickup')} 
+                      className={`flex flex-col items-center justify-center p-5 rounded-[24px] font-bold border-2 transition-all ${
+                        deliveryType === 'pickup' 
+                        ? 'bg-primary/10 border-primary text-primary shadow-sm' 
+                        : 'bg-white border-stone-200 text-stone-400 hover:border-primary/30'
+                      }`}
+                    >
+                      <MapPin size={28} className="mb-2" />
+                      <span className="text-sm tracking-wide uppercase">Retirada</span>
+                    </button>
                  </div>
                  
                  {deliveryType === 'delivery' && (
@@ -3815,13 +3835,14 @@ export default function App() {
                       <div className="bg-stone-50 p-4 rounded-3xl mb-6 shadow-inner">
                         <img src={`data:image/jpeg;base64,${mpPixData.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 mix-blend-multiply" />
                       </div>
-                      <p className="text-stone-500 text-xs mb-2">Pix Copia e Cola:</p>
-                      <div className="bg-stone-50 p-4 rounded-2xl font-mono font-bold text-stone-800 break-all mb-4 flex justify-between items-center text-[10px] w-full max-w-sm">
-                        <span className="truncate flex-1">{mpPixData.qr_code}</span>
-                        <button onClick={() => { navigator.clipboard.writeText(mpPixData.qr_code); setPixCopied(true); setTimeout(()=>setPixCopied(false), 2000); }} className="text-secondary p-2 ml-2 flex-shrink-0">
-                          {pixCopied ? <Check size={18} /> : <Copy size={18} />}
+                      <p className="text-stone-700 text-base font-bold mb-2 uppercase tracking-wide">Pix Copia e Cola</p>
+                      <div className="bg-amarena-green/10 border-2 border-amarena-green p-4 rounded-2xl font-mono font-bold text-stone-800 mb-4 flex justify-between items-center w-full max-w-sm cursor-pointer hover:bg-amarena-green/20 transition-colors" onClick={() => { navigator.clipboard.writeText(mpPixData.qr_code); setPixCopied(true); setTimeout(()=>setPixCopied(false), 2000); }}>
+                        <span className="truncate flex-1 text-sm">{mpPixData.qr_code}</span>
+                        <button className="bg-amarena-green text-white p-3 rounded-xl ml-3 flex-shrink-0 shadow-md">
+                          {pixCopied ? <Check size={20} /> : <Copy size={20} />}
                         </button>
                       </div>
+                      {pixCopied && <p className="text-amarena-green text-sm font-bold animate-bounce mb-2">Copiado para a área de transferência!</p>}
                       <p className="text-xs text-secondary animate-pulse font-bold mt-2">Aguardando pagamento...</p>
                       <button
                         onClick={() => {
