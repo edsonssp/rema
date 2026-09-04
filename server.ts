@@ -7,6 +7,8 @@ import { MongoClient, ObjectId, Db } from "mongodb";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
+import { GoogleGenAI } from "@google/genai";
+import { sendOrderToSaipos } from "./src/services/saipos.ts";
 
 dotenv.config();
 
@@ -76,6 +78,17 @@ async function getDb() {
   return dbConnectingPromise;
 }
 
+let geminiClient: GoogleGenAI | null = null;
+function getGemini(): GoogleGenAI {
+  if (!geminiClient) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY environment variable is not defined");
+    }
+    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return geminiClient;
+}
+
 // --- Mercado Pago Setup ---
 let mpClient: MercadoPagoConfig | null = null;
 
@@ -105,7 +118,7 @@ const authenticateAdmin = (req: express.Request & { user?: { username: string; r
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   console.log("[Amarena] Initialization Info:");
   console.log("  - DB Status:", MONGO_URL ? "URL Provided" : "URL MISSING");
@@ -300,7 +313,7 @@ async function sendNotificationToPhone(phone: string, title: string, body: strin
     try {
       const db = await getDb();
       const { items, total, deliveryFee, paymentMethod, clientInfo } = req.body;
-      const result = await db.collection("orders").insertOne({
+      const orderDoc = {
         items: items || [],
         total: Number(total) || 0,
         deliveryFee: Number(deliveryFee) || 0,
@@ -310,11 +323,127 @@ async function sendNotificationToPhone(phone: string, title: string, body: strin
         archived: false,
         createdAt: new Date(),
         updatedAt: new Date()
-      });
+      };
+      const result = await db.collection("orders").insertOne(orderDoc);
+      
       console.log(`[Amarena] New order created in database with ID: ${result.insertedId.toString()}`);
+      
+      // Assincronamente envia para a Saipos
+      sendOrderToSaipos({ ...orderDoc, _id: result.insertedId });
+      
       res.status(201).json({ id: result.insertedId.toString() });
     } catch (err: unknown) {
       console.error("[Amarena] Error creating order:", err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // WhatsApp Webhook Integration
+  app.post("/api/webhook/whatsapp", async (req, res) => {
+    try {
+      const db = await getDb();
+      const { message, customerPhone, customerName, address } = req.body;
+      
+      let orderData: any = null;
+
+      if (message) {
+        // Parse unstructured message using Gemini
+        const ai = getGemini();
+        
+        // Fetch current active products to give context to Gemini
+        const products = await db.collection("products").find({ active: { $ne: false } }).toArray();
+        const menuContext = products.map((p: any) => `- ${p.name} (Categoria: ${p.category}) - R$ ${p.price}`).join('\n');
+
+        const prompt = `Você é um assistente de extração de pedidos para a sorveteria Amarena.
+Abaixo está o cardápio atual:
+${menuContext}
+
+O cliente enviou a seguinte mensagem no WhatsApp:
+"${message}"
+
+Extraia os itens que ele pediu, cruzando com o nosso cardápio.
+Responda APENAS com um JSON válido seguindo essa estrutura:
+{
+  "items": [
+    {
+      "id": "gerencie_um_id_aleatorio_ou_o_nome",
+      "name": "Nome do Produto",
+      "price": 10.00,
+      "quantity": 2,
+      "size": "Tamanho (se houver)",
+      "options": ["Adicional 1"]
+    }
+  ],
+  "total": 20.00,
+  "deliveryType": "delivery ou pickup",
+  "paymentMethod": "Dinheiro, PIX ou Cartão"
+}`;
+
+        const result = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+             responseMimeType: 'application/json',
+          }
+        });
+        
+        try {
+          orderData = JSON.parse(result.text || "{}");
+        } catch (e) {
+          console.error("Failed to parse Gemini response as JSON", e);
+          orderData = { items: [] };
+        }
+      } else if (req.body.items) {
+        // Structured data directly from a more advanced bot
+        orderData = req.body;
+      } else {
+        return res.status(400).json({ error: "No message or order data provided" });
+      }
+
+      // Calculate final total based on items if not set
+      let calculatedTotal = 0;
+      const itemsToSave = (orderData.items || []).map((item: any) => {
+        const itemTotal = (Number(item.price) * (Number(item.quantity) || 1));
+        calculatedTotal += itemTotal;
+        return {
+          ...item,
+          quantity: item.quantity || 1,
+          id: item.id || Math.random().toString(36).substr(2, 9)
+        };
+      });
+
+      const finalTotal = orderData.total || calculatedTotal;
+      const finalDeliveryType = orderData.deliveryType || req.body.deliveryType || (address ? 'delivery' : 'pickup');
+      const finalAddress = address || (finalDeliveryType === 'delivery' ? 'Endereço recebido via WhatsApp' : 'Retirada na Sorveteria');
+
+      const orderDoc = {
+        items: itemsToSave,
+        total: Number(finalTotal) || 0,
+        deliveryFee: finalDeliveryType === 'delivery' ? 5 : 0,
+        paymentMethod: orderData.paymentMethod || "Acertar na Entrega / WhatsApp",
+        clientInfo: {
+          name: customerName || "Cliente do WhatsApp",
+          phone: customerPhone || "Telefone não informado",
+          deliveryType: finalDeliveryType,
+          address: finalAddress
+        },
+        status: "pending",
+        source: "whatsapp",
+        archived: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const dbResult = await db.collection("orders").insertOne(orderDoc);
+
+      console.log(`[Amarena] New WhatsApp order created with ID: ${dbResult.insertedId.toString()}`);
+      
+      // Assincronamente envia para a Saipos
+      sendOrderToSaipos({ ...orderDoc, _id: dbResult.insertedId });
+
+      res.status(201).json({ id: dbResult.insertedId.toString(), message: "Order processed successfully", orderData });
+    } catch (err: unknown) {
+      console.error("[Amarena] Error processing WhatsApp webhook:", err);
       res.status(500).json({ error: String(err) });
     }
   });
