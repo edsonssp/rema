@@ -64,66 +64,59 @@ export async function sendOrderToSaipos(orderData: any) {
   try {
     console.log("[Saipos] Preparando envio de pedido para a integração...");
 
-    const token = await getSaiposToken();
+    // Garante que temos um token válido antes de enviar o pedido
+    // Descomente a linha abaixo quando for rodar de verdade:
+    // const token = await getSaiposToken();
 
-    const isDelivery = orderData.clientInfo?.deliveryType === 'delivery';
-
-    // Mapeamento baseado na documentação oficial da Saipos
+    // Mapeamento genérico (precisará ser ajustado conforme documentação da Saipos)
     const saiposPayload = {
-      order_id: orderData.id || orderData._id?.toString(),
-      display_id: orderData.id ? orderData.id.toString().substring(0, 5) : orderData._id?.toString().substring(0, 5),
-      cod_store: SAIPOS_CONFIG.storeId,
-      created_at: new Date().toISOString(),
-      notes: orderData.notes || "",
-      total_amount: orderData.total,
-      total_discount: 0,
-      total_increase: 0,
-      customer: {
-        id: "-1", // -1 para cliente não identificado/sem cadastro prévio
-        name: orderData.clientInfo?.name || "Cliente sem nome",
-        phone: orderData.clientInfo?.phone || "00000000000",
+      // Normalmente os sistemas de PDV pedem um ID de referência
+      id_externo: orderData.id || orderData._id?.toString(),
+      
+      // ID da sua loja na Saipos
+      loja_id: SAIPOS_CONFIG.storeId, 
+      
+      // Dados do Cliente
+      cliente: {
+        nome: orderData.clientInfo?.name || "Cliente Padrão",
+        telefone: orderData.clientInfo?.phone || "00000000000",
       },
-      order_method: {
-        mode: isDelivery ? "DELIVERY" : "TAKEOUT",
-        ...(isDelivery ? {
-          delivery_by: "RESTAURANT",
-          delivery_fee: orderData.deliveryFee || 0,
-        } : {}),
-        scheduled: false
+
+      // Endereço (se for delivery)
+      endereco: {
+        logradouro: orderData.clientInfo?.address || "",
+        // numero, bairro, etc. (a ser detalhado)
       },
-      ...(isDelivery ? {
-        delivery_address: {
-          country: "BR",
-          state: "PR", // Exemplo fixo, deve ser ajustado com dados reais
-          city: "Curitiba", // Exemplo fixo, deve ser ajustado com dados reais
-          street_name: orderData.clientInfo?.address || "Endereço não informado",
-          street_number: "S/N"
-        }
-      } : {}),
-      items: (orderData.items || []).map((item: any) => ({
-        integration_code: item.id || Math.random().toString(36).substring(7),
-        desc_item: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-        notes: item.options?.join(", ") || "",
-        choice_items: [] // Opcionais se tiver
+
+      // Itens do Pedido
+      itens: (orderData.items || []).map((item: any) => ({
+        id_externo: item.id,
+        nome: item.name,
+        quantidade: item.quantity,
+        preco_unitario: item.price,
+        // observacoes: item.options?.join(", ") || ""
       })),
-      payment_types: [
-        {
-          code: orderData.paymentMethod === "Pix" ? "PIX" : "DIN", // PIX, DIN, CAR, etc.
-          amount: orderData.total,
-          change_for: 0
-        }
-      ]
+
+      // Totais e Pagamento
+      total_pedido: orderData.total,
+      taxa_entrega: orderData.deliveryFee || 0,
+      pagamento: {
+        metodo: orderData.paymentMethod || "DINHEIRO",
+        status: orderData.status === "paid" ? "PAGO" : "PENDENTE"
+      },
+      
+      tipo_pedido: orderData.clientInfo?.deliveryType === "pickup" ? "RETIRADA" : "ENTREGA"
     };
 
-    console.log(`[Saipos] Disparando requisição para ${SAIPOS_CONFIG.baseUrl}/order...`);
+    console.log(`[Saipos] Disparando requisição para ${SAIPOS_CONFIG.baseUrl}/pedidos...`);
     
-    const response = await fetch(`${SAIPOS_CONFIG.baseUrl}/order`, {
+    // Descomente e ajuste a chamada real quando a documentação for confirmada:
+    /*
+    const response = await fetch(`${SAIPOS_CONFIG.baseUrl}/pedidos`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": token 
+        "Authorization": `Bearer ${token}` 
       },
       body: JSON.stringify(saiposPayload)
     });
@@ -135,9 +128,13 @@ export async function sendOrderToSaipos(orderData: any) {
     }
 
     const data = await response.json();
-    console.log("[Saipos] Pedido enviado com sucesso! Retorno da Saipos:", data);
+    console.log("[Saipos] Pedido enviado com sucesso! ID na Saipos:", data.id);
     return data;
-
+    */
+    
+    // Retorno simulado para o ambiente de testes
+    console.log("[Saipos] Simulação de envio concluída com sucesso! Payload gerado:", JSON.stringify(saiposPayload, null, 2));
+    return { success: true, simulated: true, payload: saiposPayload };
 
   } catch (error) {
     console.error("[Saipos] Erro na função sendOrderToSaipos:", error);
