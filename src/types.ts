@@ -36,6 +36,17 @@ export interface AppSettings {
   isStoreOpen: boolean;
   deliveryFee: number;
   minOrder: number;
+  acai?: Record<string, number>;
+  acaiDisabledSizes?: string[]; // IDs dos tamanhos desativados/pausados (ex: ['M500', 'G800'])
+  milkshake?: Record<string, number>;
+  milkshakeDisabledSizes?: string[];
+  potePersonalizado?: Record<string, number>;
+  poteDisabledSizes?: string[];
+  acaiLaranjas?: string[];
+  acaiVerdes?: string[];
+  activePromotionTitle?: string;
+  activePromotionBody?: string;
+  activePromotionImage?: string;
 }
 
 export interface DailyClosing {

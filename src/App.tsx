@@ -661,8 +661,11 @@ const LoyaltyCard = ({ completedOrders, clientName }: { completedOrders: number,
 type AppSettings = {
   isStoreOpen?: boolean;
   acai?: Record<string, number>;
+  acaiDisabledSizes?: string[];
   milkshake?: Record<string, number>;
+  milkshakeDisabledSizes?: string[];
   potePersonalizado?: Record<string, number>;
+  poteDisabledSizes?: string[];
   acaiAddons?: string[];
   acaiLaranjas?: string[];
   acaiVerdes?: string[];
@@ -1265,14 +1268,16 @@ export default function App() {
     { id: 'history', label: 'Meus Pedidos', icon: <History />, color: 'bg-stone-500' },
   ];
 
-  const acaiSizes = [
-    { id: '300', label: '300ml', price: settings?.acai?.['300'] || 25.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
-    { id: '400', label: '400ml', price: settings?.acai?.['400'] || 30.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
-    { id: '500', label: '500ml', price: settings?.acai?.['500'] || 36.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
-    { id: '700', label: '700ml', price: settings?.acai?.['700'] || 44.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
-    { id: 'M500', label: 'M (500ml)', price: settings?.acai?.['M500'] || 39.90, rules: '3 verdes + 2 laranjas', icon: <Soup /> },
-    { id: 'G800', label: 'G (800ml)', price: settings?.acai?.['G800'] || 48.90, rules: '3 verdes + 2 laranjas', icon: <Soup /> },
+  const allAcaiSizes = [
+    { id: '300', label: '300ml', type: 'Copo', price: settings?.acai?.['300'] || 25.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
+    { id: '400', label: '400ml', type: 'Copo', price: settings?.acai?.['400'] || 30.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
+    { id: '500', label: '500ml', type: 'Copo', price: settings?.acai?.['500'] || 36.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
+    { id: '700', label: '700ml', type: 'Copo', price: settings?.acai?.['700'] || 44.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda /> },
+    { id: 'M500', label: 'M (500ml)', type: 'Tigela', price: settings?.acai?.['M500'] || 39.90, rules: '3 verdes + 2 laranjas', icon: <Soup /> },
+    { id: 'G800', label: 'G (800ml)', type: 'Tigela', price: settings?.acai?.['G800'] || 48.90, rules: '3 verdes + 2 laranjas', icon: <Soup /> },
   ];
+  const disabledAcaiSizes = settings?.acaiDisabledSizes || [];
+  const acaiSizes = allAcaiSizes.filter(s => !disabledAcaiSizes.includes(s.id));
 
   const defaultLaranjas = [
     'Bis',
@@ -1326,11 +1331,13 @@ export default function App() {
     { name: 'Nutella', price: 5.00 }
   ];
 
-  const milkshakeSizes = [
+  const allMilkshakeSizes = [
     { id: '300', label: '300ml', price: settings?.milkshake?.['300'] || 20.90 },
     { id: '400', label: '400ml', price: settings?.milkshake?.['400'] || 25.90 },
     { id: '500', label: '500ml', price: settings?.milkshake?.['500'] || 28.90 },
   ];
+  const disabledMilkshakeSizes = settings?.milkshakeDisabledSizes || [];
+  const milkshakeSizes = allMilkshakeSizes.filter(s => !disabledMilkshakeSizes.includes(s.id));
 
   /* REMOVED: sundaeSizes */
 
@@ -1341,11 +1348,13 @@ export default function App() {
     { name: 'Ovomaltine', price: 3.50 }
   ];
 
-  const tubSizes = [
+  const allTubSizes = [
     { id: '1L', label: '1 Litro', price: settings?.potePersonalizado?.['1L'] || 40.0 },
     { id: '1.5L', label: '1,5 Litros', price: settings?.potePersonalizado?.['1.5L'] || 50.0 },
     { id: '2L', label: '2 Litros', price: settings?.potePersonalizado?.['2L'] || 60.60 },
   ];
+  const disabledTubSizes = settings?.poteDisabledSizes || [];
+  const tubSizes = allTubSizes.filter(s => !disabledTubSizes.includes(s.id));
 
   const renderScreen = () => {
     switch(currentScreen) {
@@ -2037,35 +2046,53 @@ export default function App() {
 
             {!selectedSize ? (
               <div className="px-6 py-8 space-y-6 flex-1">
-                <h3 className="text-lg font-bold text-stone-800">Escolha o Tamanho</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {acaiSizes.map(size => (
-                    <button
-                      key={size.id}
-                      onClick={() => setSelectedSize(size.id)}
-                      className="bg-cream border-2 border-stone-50 p-6 rounded-[32px] text-center shadow-sm hover:border-amarena-purple transition-all active:scale-95 flex flex-col items-center gap-2"
-                    >
-                      <div className="text-amarena-purple mb-1">
-                        {React.cloneElement(size.icon as React.ReactElement, { size: 32 })}
-                      </div>
-                      <p className="font-bold text-xl text-stone-700">{size.label}</p>
-                      <p className="text-amarena-purple font-black text-lg">R$ {size.price.toFixed(2)}</p>
-                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wide">{size.rules}</p>
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-stone-800">Escolha o Tamanho</h3>
+                  <span className="text-xs font-bold text-amarena-purple bg-amarena-purple/10 px-3 py-1 rounded-full">
+                    {acaiSizes.length} opções disponíveis
+                  </span>
                 </div>
+
+                {acaiSizes.length === 0 ? (
+                  <div className="p-8 text-center bg-stone-50 rounded-3xl border border-stone-200">
+                    <p className="text-base font-bold text-stone-700">Nenhum tamanho disponível no momento</p>
+                    <p className="text-xs text-stone-400 mt-1">Os tamanhos de Açaí estão temporariamente pausados pela loja.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {acaiSizes.map(size => (
+                      <button
+                        key={size.id}
+                        onClick={() => setSelectedSize(size.id)}
+                        className="bg-cream border-2 border-stone-50 p-6 rounded-[32px] text-center shadow-sm hover:border-amarena-purple transition-all active:scale-95 flex flex-col items-center gap-2 relative overflow-hidden"
+                      >
+                        {size.type === 'Tigela' && (
+                          <span className="absolute top-2 right-2 bg-amarena-purple/15 text-amarena-purple text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                            Tigela
+                          </span>
+                        )}
+                        <div className="text-amarena-purple mb-1">
+                          {React.cloneElement(size.icon as React.ReactElement, { size: 32 })}
+                        </div>
+                        <p className="font-bold text-xl text-stone-700">{size.label}</p>
+                        <p className="text-amarena-purple font-black text-lg">R$ {size.price.toFixed(2)}</p>
+                        <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wide">{size.rules}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex-1 flex flex-col">
                  <div className="bg-amarena-purple/5 p-4 flex justify-between items-center border-b border-amarena-purple/10">
                     <div className="flex items-center gap-3">
                       <div className="bg-amarena-purple text-white p-2 rounded-xl">
-                        {React.cloneElement(acaiSizes.find(s => s.id === selectedSize)?.icon as React.ReactElement, { size: 20 })}
+                        {React.cloneElement((allAcaiSizes.find(s => s.id === selectedSize)?.icon || <Soup />) as React.ReactElement, { size: 20 })}
                       </div>
                       <div>
-                        <h4 className="font-bold text-amarena-purple">Açaí {acaiSizes.find(s => s.id === selectedSize)?.label}</h4>
+                        <h4 className="font-bold text-amarena-purple">Açaí {allAcaiSizes.find(s => s.id === selectedSize)?.label}</h4>
                         <p className="text-[10px] text-amarena-purple/60 font-bold uppercase tracking-widest">
-                           {acaiSizes.find(s => s.id === selectedSize)?.rules}
+                           {allAcaiSizes.find(s => s.id === selectedSize)?.rules}
                         </p>
                       </div>
                     </div>
@@ -2161,7 +2188,7 @@ export default function App() {
 
                  {/* Selections Tracking */}
                  {(() => {
-                   const sizeObj = acaiSizes.find(s => s.id === selectedSize);
+                   const sizeObj = allAcaiSizes.find(s => s.id === selectedSize);
                    const maxVerdes = 3;
                    const maxLaranjas = (selectedSize === 'M500' || selectedSize === 'G800') ? 2 : 1;
                    
@@ -2969,49 +2996,285 @@ export default function App() {
                           </button>
                         </div>
 
-                        <h3 className="font-bold text-stone-800 mb-6">Preços de Açaí</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                           {['300', '400', '500', '700', 'M500', 'G800'].map(id => (
-                             <div key={id} className="space-y-1">
-                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{id}ml / {id === 'M500' ? 'M' : id === 'G800' ? 'G' : ''}</label>
-                                <input 
-                                  type="number"
-                                  className="w-full p-3 bg-stone-50 rounded-xl outline-none"
-                                  value={settings?.acai?.[id] || ''}
-                                  onChange={e => setSettings({...settings, acai: {...settings?.acai, [id]: parseFloat(e.target.value)}})}
-                                />
-                             </div>
-                           ))}
+                        {/* Controle de Tamanhos de Açaí */}
+                        <div className="border-t border-stone-200 pt-8 mt-8">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                            <div>
+                              <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2">
+                                <Soup className="text-amarena-purple" size={22} />
+                                Tamanhos de Açaí (Copos & Tigelas)
+                              </h3>
+                              <p className="text-xs text-stone-500 mt-0.5">
+                                Pause ou reative tamanhos conforme a disponibilidade. Tamanhos pausados somem do cardápio do cliente.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentDisabled = settings?.acaiDisabledSizes || [];
+                                  const tigelas = ['M500', 'G800'];
+                                  const hasAllTigelas = tigelas.every(t => currentDisabled.includes(t));
+                                  const next = hasAllTigelas 
+                                    ? currentDisabled.filter(id => !tigelas.includes(id))
+                                    : Array.from(new Set([...currentDisabled, ...tigelas]));
+                                  setSettings({ ...settings, acaiDisabledSizes: next });
+                                }}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                  ['M500', 'G800'].every(t => (settings?.acaiDisabledSizes || []).includes(t))
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : 'bg-stone-100 text-stone-700 hover:bg-amber-50 hover:text-amber-700 border border-stone-200'
+                                }`}
+                              >
+                                {['M500', 'G800'].every(t => (settings?.acaiDisabledSizes || []).includes(t))
+                                  ? '🥣 Reativar Tigelas (M & G)'
+                                  : '⏸️ Pausar Tigelas (M & G)'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSettings({ ...settings, acaiDisabledSizes: [] })}
+                                className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold transition-all"
+                              >
+                                🟢 Ativar Todos os Açaís
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl mb-6 text-xs text-amber-900 flex items-start gap-3">
+                            <span className="text-base">💡</span>
+                            <div>
+                              <p className="font-bold">Dica Operacional de Entrega:</p>
+                              <p className="mt-0.5 text-amber-800/90">
+                                Para evitar problemas de vazamento com as <strong>Tigelas M (500ml)</strong> e <strong>G (800ml)</strong> no delivery, basta clicar no botão <strong>"⏸️ Pausar Tigelas"</strong> ou pausar individualmente abaixo. Apenas os copos permanecerão disponíveis no app do cliente!
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {[
+                              { id: '300', label: '300ml', type: 'Copo', defaultPrice: 25.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda size={20} /> },
+                              { id: '400', label: '400ml', type: 'Copo', defaultPrice: 30.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda size={20} /> },
+                              { id: '500', label: '500ml', type: 'Copo', defaultPrice: 36.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda size={20} /> },
+                              { id: '700', label: '700ml', type: 'Copo', defaultPrice: 44.90, rules: '3 verdes + 1 laranjas', icon: <CupSoda size={20} /> },
+                              { id: 'M500', label: 'Tigela M (500ml)', type: 'Tigela', defaultPrice: 39.90, rules: '3 verdes + 2 laranjas', icon: <Soup size={20} /> },
+                              { id: 'G800', label: 'Tigela G (800ml)', type: 'Tigela', defaultPrice: 48.90, rules: '3 verdes + 2 laranjas', icon: <Soup size={20} /> },
+                            ].map(item => {
+                              const isPaused = (settings?.acaiDisabledSizes || []).includes(item.id);
+                              const currentPrice = settings?.acai?.[item.id] ?? item.defaultPrice;
+
+                              return (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-4 ${
+                                    isPaused 
+                                      ? 'bg-stone-50 border-dashed border-stone-300 opacity-80' 
+                                      : item.type === 'Tigela' 
+                                        ? 'bg-amber-50/30 border-amarena-purple/30 shadow-sm'
+                                        : 'bg-white border-stone-200 shadow-sm'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`p-2 rounded-xl ${isPaused ? 'bg-stone-200 text-stone-500' : 'bg-amarena-purple/10 text-amarena-purple'}`}>
+                                          {item.icon}
+                                        </div>
+                                        <div>
+                                          <h4 className="font-bold text-stone-800 text-sm">{item.label}</h4>
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{item.rules}</span>
+                                        </div>
+                                      </div>
+                                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
+                                        item.type === 'Tigela' 
+                                          ? 'bg-amarena-purple/10 text-amarena-purple' 
+                                          : 'bg-stone-100 text-stone-600'
+                                      }`}>
+                                        {item.type}
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3">
+                                      <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Preço (R$)</label>
+                                      <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400 text-xs">R$</span>
+                                        <input 
+                                          type="number"
+                                          step="0.10"
+                                          className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-800 outline-none focus:border-amarena-purple text-sm"
+                                          value={settings?.acai?.[item.id] !== undefined ? settings.acai[item.id] : item.defaultPrice}
+                                          onChange={e => setSettings({
+                                            ...settings,
+                                            acai: { ...(settings?.acai || {}), [item.id]: parseFloat(e.target.value) || 0 }
+                                          })}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const prev = settings?.acaiDisabledSizes || [];
+                                      const next = isPaused 
+                                        ? prev.filter(id => id !== item.id) 
+                                        : [...prev, item.id];
+                                      setSettings({ ...settings, acaiDisabledSizes: next });
+                                    }}
+                                    className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2 ${
+                                      isPaused
+                                        ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+                                    }`}
+                                  >
+                                    {isPaused ? (
+                                      <>
+                                        <span>⏸️</span>
+                                        <span>PAUSADO (Clique para Ativar)</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>🟢</span>
+                                        <span>ATIVO NO CARDÁPIO</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
-                        <h3 className="font-bold text-stone-800 mb-6 mt-8">Preços de Milkshake</h3>
-                         <div className="grid grid-cols-2 gap-4">
-                           {['300', '400', '500'].map(id => (
-                             <div key={id} className="space-y-1">
-                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{id}ml</label>
-                                <input 
-                                  type="number"
-                                  className="w-full p-3 bg-stone-50 rounded-xl outline-none"
-                                  value={settings?.milkshake?.[id] || ''}
-                                  onChange={e => setSettings({...settings, milkshake: {...settings?.milkshake, [id]: parseFloat(e.target.value)}})}
-                                />
-                             </div>
-                           ))}
+                        {/* Tamanhos de Milkshake */}
+                        <div className="border-t border-stone-200 pt-8 mt-8">
+                          <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2 mb-2">
+                            <CupSoda className="text-amarena-red" size={22} />
+                            Tamanhos de Milkshake
+                          </h3>
+                          <p className="text-xs text-stone-500 mb-4">
+                            Gerencie os preços e a disponibilidade dos tamanhos de Milkshake.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {[
+                              { id: '300', label: '300ml', defaultPrice: 20.90 },
+                              { id: '400', label: '400ml', defaultPrice: 25.90 },
+                              { id: '500', label: '500ml', defaultPrice: 28.90 },
+                            ].map(item => {
+                              const isPaused = (settings?.milkshakeDisabledSizes || []).includes(item.id);
+                              return (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-4 ${
+                                    isPaused ? 'bg-stone-50 border-dashed border-stone-300 opacity-80' : 'bg-white border-stone-200 shadow-sm'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="font-bold text-stone-800">{item.label}</h4>
+                                      <span className="text-[10px] font-bold text-stone-400 uppercase">Milkshake</span>
+                                    </div>
+                                    <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Preço (R$)</label>
+                                    <div className="relative">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400 text-xs">R$</span>
+                                      <input 
+                                        type="number"
+                                        step="0.10"
+                                        className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-800 outline-none focus:border-amarena-red text-sm"
+                                        value={settings?.milkshake?.[item.id] !== undefined ? settings.milkshake[item.id] : item.defaultPrice}
+                                        onChange={e => setSettings({
+                                          ...settings,
+                                          milkshake: { ...(settings?.milkshake || {}), [item.id]: parseFloat(e.target.value) || 0 }
+                                        })}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const prev = settings?.milkshakeDisabledSizes || [];
+                                      const next = isPaused ? prev.filter(id => id !== item.id) : [...prev, item.id];
+                                      setSettings({ ...settings, milkshakeDisabledSizes: next });
+                                    }}
+                                    className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-1.5 ${
+                                      isPaused
+                                        ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+                                    }`}
+                                  >
+                                    {isPaused ? '⏸️ PAUSADO' : '🟢 ATIVO NO CARDÁPIO'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
-                        <h3 className="font-bold text-stone-800 mb-6 mt-8">Preços de Pote Personalizado</h3>
-                         <div className="grid grid-cols-3 gap-4">
-                           {['1L', '1.5L', '2L'].map(id => (
-                             <div key={id} className="space-y-1">
-                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{id}</label>
-                                <input 
-                                  type="number"
-                                  className="w-full p-3 bg-stone-50 rounded-xl outline-none"
-                                  value={settings?.potePersonalizado?.[id] || ''}
-                                  onChange={e => setSettings({...settings, potePersonalizado: {...settings?.potePersonalizado, [id]: parseFloat(e.target.value)}})}
-                                />
-                             </div>
-                           ))}
+                        {/* Tamanhos de Monte seu Pote */}
+                        <div className="border-t border-stone-200 pt-8 mt-8">
+                          <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2 mb-2">
+                            <IceCream className="text-amarena-orange" size={22} />
+                            Tamanhos de Monte seu Pote
+                          </h3>
+                          <p className="text-xs text-stone-500 mb-4">
+                            Gerencie os preços e a disponibilidade dos potes personalizados.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {[
+                              { id: '1L', label: '1 Litro', defaultPrice: 40.0 },
+                              { id: '1.5L', label: '1,5 Litros', defaultPrice: 50.0 },
+                              { id: '2L', label: '2 Litros', defaultPrice: 60.60 },
+                            ].map(item => {
+                              const isPaused = (settings?.poteDisabledSizes || []).includes(item.id);
+                              return (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-5 rounded-2xl border-2 transition-all flex flex-col justify-between gap-4 ${
+                                    isPaused ? 'bg-stone-50 border-dashed border-stone-300 opacity-80' : 'bg-white border-stone-200 shadow-sm'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="font-bold text-stone-800">{item.label}</h4>
+                                      <span className="text-[10px] font-bold text-stone-400 uppercase">Pote</span>
+                                    </div>
+                                    <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Preço (R$)</label>
+                                    <div className="relative">
+                                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400 text-xs">R$</span>
+                                      <input 
+                                        type="number"
+                                        step="0.10"
+                                        className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-bold text-stone-800 outline-none focus:border-amarena-orange text-sm"
+                                        value={settings?.potePersonalizado?.[item.id] !== undefined ? settings.potePersonalizado[item.id] : item.defaultPrice}
+                                        onChange={e => setSettings({
+                                          ...settings,
+                                          potePersonalizado: { ...(settings?.potePersonalizado || {}), [item.id]: parseFloat(e.target.value) || 0 }
+                                        })}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const prev = settings?.poteDisabledSizes || [];
+                                      const next = isPaused ? prev.filter(id => id !== item.id) : [...prev, item.id];
+                                      setSettings({ ...settings, poteDisabledSizes: next });
+                                    }}
+                                    className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-1.5 ${
+                                      isPaused
+                                        ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+                                    }`}
+                                  >
+                                    {isPaused ? '⏸️ PAUSADO' : '🟢 ATIVO NO CARDÁPIO'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* Promoção Persistente */}
@@ -3516,9 +3779,9 @@ export default function App() {
       case 'checkout': {
         const deliveryFee = deliveryType === 'delivery' ? (settings?.deliveryFee || 0) : 0;
         const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0) + deliveryFee;
-        const pixKey = "45.057.040/0001-08";
+        const cnpjPixKey = "45.057.040/0001-08";
 
-        const finishOrder = async (method: string) => {
+        const finishOrder = async (method: string, changeForValue?: number) => {
           if (!clientName || !clientPhone) {
             showToast("Preencha seu Nome e Telefone!");
             return;
@@ -3544,6 +3807,7 @@ export default function App() {
               total: total,
               deliveryFee: deliveryFee,
               paymentMethod: method,
+              changeFor: changeForValue || 0,
               clientInfo: {
                 name: clientName,
                 phone: clientPhone,
@@ -3560,60 +3824,6 @@ export default function App() {
           } catch (err: any) {
             console.error("Order error:", err);
             showToast("Erro ao enviar pedido. Tente novamente.");
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        const handleCardPayment = async () => {
-          if (!clientName || !clientPhone) {
-            showToast("Preencha seu Nome e Telefone!");
-            return;
-          }
-          if (deliveryType === 'delivery' && (!address || !addressNumber || !neighborhood)) {
-            showToast("Preencha o endereço completo!");
-            return;
-          }
-          saveClientData();
-
-          try {
-            setLoading(true);
-            if (settings?.isStoreOpen === false) {
-              alert("Desculpe, a loja fechou enquanto você montava seu pedido.");
-              setLoading(false);
-              return;
-            }
-
-            // Save order in database first
-            const orderRes = await axios.post('/api/orders', {
-              items: cart,
-              total: total,
-              deliveryFee: deliveryFee,
-              paymentMethod: 'Cartão de Crédito (Mercado Pago)',
-              clientInfo: {
-                name: clientName,
-                phone: clientPhone,
-                deliveryType,
-                address: deliveryType === 'delivery' ? `${address}, ${addressNumber} ${apartment ? `- Apt ${apartment}` : ''} ${neighborhood ? `- Bairro ${neighborhood}` : ''}` : 'Retirada na Sorveteria'
-              }
-            });
-
-            const createdOrderId = orderRes.data.id;
-            setLastOrderId(createdOrderId);
-
-            // Create Mercado Pago preference
-            const prefRes = await axios.post('/api/payment/create-preference', {
-              items: cart,
-              external_reference: createdOrderId
-            });
-
-            setCart([]);
-            setSelectedSize(null);
-            setSelections([]);
-            window.location.href = prefRes.data.init_point;
-          } catch (err: any) {
-            console.error("Payment error:", err);
-            alert("Erro ao iniciar pagamento com cartão.");
           } finally {
             setLoading(false);
           }
@@ -3713,8 +3923,26 @@ export default function App() {
               </div>
             </div>
 
-            <h3 className="text-xl font-display font-bold text-stone-800 mb-4 px-2">Pagamento</h3>
+            <h3 className="text-xl font-display font-bold text-stone-800 mb-4 px-2">Forma de Pagamento</h3>
             <div className="space-y-3">
+              {/* Opção 1: PIX Direto no CNPJ */}
+              <button 
+                onClick={() => setPaymentMethod('pix')}
+                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'pix' ? 'border-secondary bg-secondary/5' : 'border-stone-100 bg-white'}`}
+              >
+                <div className={`p-3 rounded-2xl ${paymentMethod === 'pix' ? 'bg-secondary text-white' : 'bg-stone-100 text-stone-400'}`}>
+                  <QrCode size={24} />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-stone-800">PIX (Chave CNPJ)</p>
+                    <span className="text-[10px] bg-secondary/10 text-secondary font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sem Taxa</span>
+                  </div>
+                  <p className="text-xs text-stone-400">Transferência direta para a Amarena</p>
+                </div>
+              </button>
+
+              {/* Opção 2: Cartão na Entrega / Retirada */}
               <button 
                 onClick={() => setPaymentMethod('card')}
                 className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-stone-100 bg-white'}`}
@@ -3723,32 +3951,22 @@ export default function App() {
                   <CreditCard size={24} />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-stone-800">Cartão de Crédito</p>
-                  <p className="text-xs text-stone-400">Via Mercado Pago</p>
+                  <p className="font-bold text-stone-800">Cartão na Maquininha</p>
+                  <p className="text-xs text-stone-400">Débito ou Crédito na entrega/retirada</p>
                 </div>
               </button>
-              <button 
-                onClick={() => setPaymentMethod('pix')}
-                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'pix' ? 'border-secondary bg-secondary/5' : 'border-stone-100 bg-white'}`}
-              >
-                <div className={`p-3 rounded-2xl ${paymentMethod === 'pix' ? 'bg-secondary text-white' : 'bg-stone-100 text-stone-400'}`}>
-                  <QrCode size={24} />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-stone-800">PIX (Mercado Pago)</p>
-                  <p className="text-xs text-stone-400">Aprovação imediata</p>
-                </div>
-              </button>
+
+              {/* Opção 3: Dinheiro na Entrega / Retirada */}
               <button 
                 onClick={() => setPaymentMethod('delivery_payment')}
                 className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'delivery_payment' ? 'border-amarena-green bg-amarena-green/5' : 'border-stone-100 bg-white'}`}
               >
                 <div className={`p-3 rounded-2xl ${paymentMethod === 'delivery_payment' ? 'bg-amarena-green text-white' : 'bg-stone-100 text-stone-400'}`}>
-                  <CreditCard size={24} />
+                  <ShoppingBag size={24} />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-stone-800">Pagar na Entrega</p>
-                  <p className="text-xs text-stone-400">Cartão ou Dinheiro</p>
+                  <p className="font-bold text-stone-800">Dinheiro</p>
+                  <p className="text-xs text-stone-400">Pagamento em espécie na entrega</p>
                 </div>
               </button>
             </div>
@@ -3756,115 +3974,68 @@ export default function App() {
             <div className="mt-8">
               {paymentMethod === 'pix' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-secondary/20 mb-6 text-center">
-                  {!mpPixData ? (
-                    <>
-                      <p className="text-stone-500 text-sm mb-3 font-medium">Gere o QR Code para pagar via PIX.</p>
-                      <Button variant="secondary" loading={loading} className="w-full py-4 text-lg" onClick={async () => {
-                        if (!clientName || !clientPhone) {
-                          showToast("Preencha seu Nome e Telefone!");
-                          return;
-                        }
-                        if (deliveryType === 'delivery' && (!address || !addressNumber || !neighborhood)) {
-                          showToast("Preencha o endereço completo!");
-                          return;
-                        }
-                        saveClientData();
-
-                        try {
-                          setLoading(true);
-                          if (settings?.isStoreOpen === false) {
-                            alert("Desculpe, a loja fechou enquanto você montava seu pedido.");
-                            setLoading(false);
-                            return;
-                          }
-
-                          // Save order in database first
-                          const orderRes = await axios.post('/api/orders', {
-                            items: cart,
-                            total: total,
-                            deliveryFee: deliveryFee,
-                            paymentMethod: 'PIX (Mercado Pago)',
-                            clientInfo: {
-                              name: clientName,
-                              phone: clientPhone,
-                              deliveryType,
-                              address: deliveryType === 'delivery' ? `${address}, ${addressNumber} ${apartment ? `- Apt ${apartment}` : ''} ${neighborhood ? `- Bairro ${neighborhood}` : ''}` : 'Retirada na Sorveteria'
-                            }
-                          });
-
-                          const createdOrderId = orderRes.data.id;
-                          setLastOrderId(createdOrderId);
-                          fetchUserOrders();
-
-                          // Generate PIX QR Code
-                          const res = await axios.post('/api/payment/pix', {
-                            transaction_amount: total,
-                            description: `Pedido Amarena - ${clientName}`,
-                            email: 'cliente@amarena.com'
-                          });
-                          setMpPixData(res.data);
-                          
-                          // Start polling for auto approval
-                          const interval = setInterval(async () => {
-                            try {
-                              const statusRes = await axios.get(`/api/payment/pix/${res.data.payment_id}`);
-                              if (statusRes.data.status === 'approved') {
-                                clearInterval(interval);
-                                setPixPollingInterval(null);
-                                setCurrentScreen('success');
-                                setCart([]);
-                                setSelectedSize(null);
-                                setSelections([]);
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            }
-                          }, 3000);
-                          setPixPollingInterval(interval);
-                        } catch (err) {
-                          console.error(err);
-                          showToast("Erro ao gerar PIX");
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}>Gerar QR Code PIX</Button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <p className="text-stone-500 font-bold mb-4">Escaneie o QR Code para pagar</p>
-                      <div className="bg-stone-50 p-4 rounded-3xl mb-6 shadow-inner">
-                        <img src={`data:image/jpeg;base64,${mpPixData.qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 mix-blend-multiply" />
-                      </div>
-                      <p className="text-stone-700 text-base font-bold mb-2 uppercase tracking-wide">Pix Copia e Cola</p>
-                      <div className="bg-amarena-green/10 border-2 border-amarena-green p-4 rounded-2xl font-mono font-bold text-stone-800 mb-4 flex justify-between items-center w-full max-w-sm cursor-pointer hover:bg-amarena-green/20 transition-colors" onClick={() => { navigator.clipboard.writeText(mpPixData.qr_code); setPixCopied(true); setTimeout(()=>setPixCopied(false), 2000); }}>
-                        <span className="truncate flex-1 text-sm">{mpPixData.qr_code}</span>
-                        <button className="bg-amarena-green text-white p-3 rounded-xl ml-3 flex-shrink-0 shadow-md">
-                          {pixCopied ? <Check size={20} /> : <Copy size={20} />}
-                        </button>
-                      </div>
-                      {pixCopied && <p className="text-amarena-green text-sm font-bold animate-bounce mb-2">Copiado para a área de transferência!</p>}
-                      <p className="text-xs text-secondary animate-pulse font-bold mt-2">Aguardando pagamento...</p>
-                      <button
-                        onClick={() => {
-                          setCurrentScreen('success');
-                          setCart([]);
-                          setSelectedSize(null);
-                          setSelections([]);
-                        }}
-                        className="mt-6 w-full py-4 bg-amarena-green text-white font-bold rounded-2xl shadow-lg hover:brightness-110 transition-all text-sm uppercase tracking-wider"
-                      >
-                        Concluir e Acompanhar Pedido
-                      </button>
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center text-secondary mb-3">
+                      <QrCode size={28} />
                     </div>
-                  )}
+                    <h4 className="text-lg font-bold text-stone-800 mb-1">Pague com PIX da Amarena</h4>
+                    <p className="text-xs text-stone-500 mb-4">Copie a chave CNPJ abaixo e faça a transferência no seu banco:</p>
+
+                    <div className="bg-stone-50 border-2 border-dashed border-secondary/40 p-4 rounded-2xl w-full max-w-sm mb-4">
+                      <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider mb-1">Chave PIX (CNPJ)</p>
+                      <p className="font-mono font-bold text-lg text-stone-800 select-all">{cnpjPixKey}</p>
+                      <p className="text-[11px] text-stone-500 font-medium mt-1">J & E SORVETERIAS LTDA (Amarena Sorvetes)</p>
+                      <p className="text-xs font-bold text-secondary mt-2">Valor a pagar: R$ {total.toFixed(2)}</p>
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText("45057040000108");
+                        setPixCopied(true);
+                        setTimeout(() => setPixCopied(false), 2500);
+                      }}
+                      className="w-full max-w-sm py-3 px-4 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 mb-4"
+                    >
+                      {pixCopied ? <Check size={18} /> : <Copy size={18} />}
+                      <span>{pixCopied ? "Chave Copiada com Sucesso!" : "Copiar Chave CNPJ"}</span>
+                    </button>
+
+                    <Button 
+                      loading={loading}
+                      onClick={() => finishOrder('PIX (CNPJ Loja)')} 
+                      className="w-full py-5 text-lg shadow-xl shadow-secondary/20 bg-secondary text-white rounded-2xl"
+                    >
+                      Confirmar Pedido com PIX
+                    </Button>
+                  </div>
                 </motion.div>
               )}
+
               {paymentMethod === 'card' && (
-                <Button loading={loading} onClick={handleCardPayment} className="w-full py-5 text-xl shadow-xl shadow-primary/20">Finalizar com Cartão</Button>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-primary/20 mb-6 text-center">
+                  <p className="text-sm text-stone-600 mb-4">O entregador levará a maquininha até você. Aceitamos débito, crédito e aproximação.</p>
+                  <Button 
+                    loading={loading} 
+                    onClick={() => finishOrder('Cartão (Maquininha na Entrega)')} 
+                    className="w-full py-5 text-xl shadow-xl shadow-primary/20 bg-primary text-white rounded-2xl"
+                  >
+                    Confirmar Pedido (Pagar no Cartão)
+                  </Button>
+                </motion.div>
               )}
 
               {paymentMethod === 'delivery_payment' && (
-                <Button variant="secondary" loading={loading} className="w-full py-5 text-xl shadow-xl shadow-amarena-green/20 bg-amarena-green" onClick={() => finishOrder('Pagar na Entrega')}>Finalizar Pedido</Button>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-amarena-green/20 mb-6 text-center">
+                  <p className="text-sm text-stone-600 mb-4">Você pagará em dinheiro no momento da entrega ou retirada.</p>
+                  <Button 
+                    variant="secondary" 
+                    loading={loading} 
+                    className="w-full py-5 text-xl shadow-xl shadow-amarena-green/20 bg-amarena-green text-white rounded-2xl" 
+                    onClick={() => finishOrder('Dinheiro na Entrega')}
+                  >
+                    Confirmar Pedido (Pagar em Dinheiro)
+                  </Button>
+                </motion.div>
               )}
             </div>
           </div>
