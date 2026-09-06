@@ -801,7 +801,9 @@ export default function App() {
 
   // Checkout State
   const [cart, setCart] = useState<{ name: string, price: number, quantity: number }[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>('delivery_payment');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'pix' | 'delivery_payment' | null>('pix');
+  const [cashChange, setCashChange] = useState<string>('');
+  const [needsChange, setNeedsChange] = useState<boolean>(false);
   const [pixCopied, setPixCopied] = useState(false);
   const [mpPixData, setMpPixData] = useState<{ qr_code: string, qr_code_base64: string, payment_id: string } | null>(null);
   const [pixPollingInterval, setPixPollingInterval] = useState<NodeJS.Timeout | null>(null);
@@ -3962,82 +3964,108 @@ export default function App() {
               {/* Opção 1: PIX Direto no CNPJ */}
               <button 
                 onClick={() => setPaymentMethod('pix')}
-                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'pix' ? 'border-secondary bg-secondary/5' : 'border-stone-100 bg-white'}`}
+                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'pix' ? 'border-secondary bg-secondary/5 ring-2 ring-secondary/20' : 'border-stone-100 bg-white hover:border-stone-200'}`}
               >
-                <div className={`p-3 rounded-2xl ${paymentMethod === 'pix' ? 'bg-secondary text-white' : 'bg-stone-100 text-stone-400'}`}>
-                  <QrCode size={24} />
+                <div className={`p-3.5 rounded-2xl ${paymentMethod === 'pix' ? 'bg-secondary text-white shadow-md shadow-secondary/20' : 'bg-stone-100 text-stone-400'}`}>
+                  <QrCode size={26} />
                 </div>
                 <div className="text-left flex-1">
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-stone-800">PIX (Chave CNPJ)</p>
-                    <span className="text-[10px] bg-secondary/10 text-secondary font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Sem Taxa</span>
+                    <span className="text-[10px] bg-secondary/15 text-secondary font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">Direto p/ Loja</span>
                   </div>
-                  <p className="text-xs text-stone-400">Transferência direta para a Amarena</p>
+                  <p className="text-xs text-stone-400">Transferência rápida via chave CNPJ oficial</p>
                 </div>
               </button>
 
-              {/* Opção 2: Cartão na Entrega / Retirada */}
+              {/* Opção 2: Cartão na Maquininha (Motoboy / Retirada) */}
               <button 
                 onClick={() => setPaymentMethod('card')}
-                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-stone-100 bg-white'}`}
+                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'card' ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-stone-100 bg-white hover:border-stone-200'}`}
               >
-                <div className={`p-3 rounded-2xl ${paymentMethod === 'card' ? 'bg-primary text-white' : 'bg-stone-100 text-stone-400'}`}>
-                  <CreditCard size={24} />
+                <div className={`p-3.5 rounded-2xl ${paymentMethod === 'card' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-stone-100 text-stone-400'}`}>
+                  <CreditCard size={26} />
                 </div>
-                <div className="text-left">
-                  <p className="font-bold text-stone-800">Cartão na Maquininha</p>
-                  <p className="text-xs text-stone-400">Débito ou Crédito na entrega/retirada</p>
+                <div className="text-left flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-stone-800">Cartão na Maquininha</p>
+                    <span className="text-[10px] bg-stone-100 text-stone-600 font-bold px-2 py-0.5 rounded-full uppercase">Débito / Crédito</span>
+                  </div>
+                  <p className="text-xs text-stone-400">
+                    {deliveryType === 'delivery' ? 'Motoboy leva a maquininha até você' : 'Pague na maquininha ao retirar'}
+                  </p>
                 </div>
               </button>
 
-              {/* Opção 3: Dinheiro na Entrega / Retirada */}
+              {/* Opção 3: Dinheiro */}
               <button 
                 onClick={() => setPaymentMethod('delivery_payment')}
-                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'delivery_payment' ? 'border-amarena-green bg-amarena-green/5' : 'border-stone-100 bg-white'}`}
+                className={`w-full p-6 rounded-3xl border-2 transition-all flex items-center gap-4 ${paymentMethod === 'delivery_payment' ? 'border-amarena-green bg-amarena-green/5 ring-2 ring-amarena-green/20' : 'border-stone-100 bg-white hover:border-stone-200'}`}
               >
-                <div className={`p-3 rounded-2xl ${paymentMethod === 'delivery_payment' ? 'bg-amarena-green text-white' : 'bg-stone-100 text-stone-400'}`}>
-                  <ShoppingBag size={24} />
+                <div className={`p-3.5 rounded-2xl ${paymentMethod === 'delivery_payment' ? 'bg-amarena-green text-white shadow-md shadow-amarena-green/20' : 'bg-stone-100 text-stone-400'}`}>
+                  <ShoppingBag size={26} />
                 </div>
-                <div className="text-left">
-                  <p className="font-bold text-stone-800">Dinheiro</p>
-                  <p className="text-xs text-stone-400">Pagamento em espécie na entrega</p>
+                <div className="text-left flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-stone-800">Dinheiro</p>
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full uppercase">Espécie</span>
+                  </div>
+                  <p className="text-xs text-stone-400">
+                    {deliveryType === 'delivery' ? 'Pagamento em mãos para o motoboy' : 'Pagamento no balcão da sorveteria'}
+                  </p>
                 </div>
               </button>
             </div>
 
             <div className="mt-8">
+              {/* Box PIX */}
               {paymentMethod === 'pix' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-secondary/20 mb-6 text-center">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-secondary/20 mb-6 text-center shadow-sm">
                   <div className="flex flex-col items-center">
                     <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center text-secondary mb-3">
                       <QrCode size={28} />
                     </div>
                     <h4 className="text-lg font-bold text-stone-800 mb-1">Pague com PIX da Amarena</h4>
-                    <p className="text-xs text-stone-500 mb-4">Copie a chave CNPJ abaixo e faça a transferência no seu banco:</p>
+                    <p className="text-xs text-stone-500 mb-4 max-w-xs">
+                      Copie a chave CNPJ abaixo e faça a transferência pelo aplicativo do seu banco:
+                    </p>
 
-                    <div className="bg-stone-50 border-2 border-dashed border-secondary/40 p-4 rounded-2xl w-full max-w-sm mb-4">
-                      <p className="text-[10px] font-black uppercase text-stone-400 tracking-wider mb-1">Chave PIX (CNPJ)</p>
-                      <p className="font-mono font-bold text-lg text-stone-800 select-all">{cnpjPixKey}</p>
-                      <p className="text-[11px] text-stone-500 font-medium mt-1">J & E SORVETERIAS LTDA (Amarena Sorvetes)</p>
-                      <p className="text-xs font-bold text-secondary mt-2">Valor a pagar: R$ {total.toFixed(2)}</p>
+                    <div className="bg-stone-50 border-2 border-dashed border-secondary/40 p-4 rounded-2xl w-full max-w-sm mb-4 text-left">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-black uppercase text-stone-400 tracking-wider">Tipo: Chave CNPJ</span>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Conta Jurídica Oficial</span>
+                      </div>
+                      <p className="font-mono font-bold text-lg text-stone-800 select-all tracking-wide">{cnpjPixKey}</p>
+                      <div className="mt-2 pt-2 border-t border-stone-200/60 flex flex-col gap-0.5">
+                        <p className="text-[11px] text-stone-600 font-bold">Titular: J & E SORVETERIAS LTDA</p>
+                        <p className="text-[10px] text-stone-400">Amarena Sorvetes</p>
+                        <p className="text-sm font-extrabold text-secondary mt-1.5">Valor Exato: R$ {total.toFixed(2)}</p>
+                      </div>
                     </div>
 
                     <button 
+                      type="button"
                       onClick={() => {
                         navigator.clipboard.writeText("45057040000108");
                         setPixCopied(true);
+                        showToast("Chave CNPJ copiada!");
                         setTimeout(() => setPixCopied(false), 2500);
                       }}
-                      className="w-full max-w-sm py-3 px-4 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 mb-4"
+                      className="w-full max-w-sm py-3.5 px-4 bg-secondary text-white hover:bg-secondary/90 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 mb-4 shadow-lg shadow-secondary/20"
                     >
                       {pixCopied ? <Check size={18} /> : <Copy size={18} />}
-                      <span>{pixCopied ? "Chave Copiada com Sucesso!" : "Copiar Chave CNPJ"}</span>
+                      <span>{pixCopied ? "Chave CNPJ Copiada!" : "Copiar Chave CNPJ"}</span>
                     </button>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-left text-xs text-amber-800 w-full max-w-sm flex items-start gap-2">
+                      <span className="text-base">💡</span>
+                      <span>Ao concluir no seu banco, clique no botão abaixo para registrar seu pedido. Envie o comprovante se solicitado!</span>
+                    </div>
 
                     <Button 
                       loading={loading}
                       onClick={() => finishOrder('PIX (CNPJ Loja)')} 
-                      className="w-full py-5 text-lg shadow-xl shadow-secondary/20 bg-secondary text-white rounded-2xl"
+                      className="w-full py-5 text-lg shadow-xl shadow-secondary/25 bg-secondary text-white rounded-2xl"
                     >
                       Confirmar Pedido com PIX
                     </Button>
@@ -4045,27 +4073,102 @@ export default function App() {
                 </motion.div>
               )}
 
+              {/* Box Cartão */}
               {paymentMethod === 'card' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-primary/20 mb-6 text-center">
-                  <p className="text-sm text-stone-600 mb-4">O entregador levará a maquininha até você. Aceitamos débito, crédito e aproximação.</p>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-primary/20 mb-6 text-center shadow-sm">
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-3">
+                    <CreditCard size={26} />
+                  </div>
+                  <h4 className="text-lg font-bold text-stone-800 mb-1">
+                    {deliveryType === 'delivery' ? 'Maquininha na Entrega' : 'Maquininha na Retirada'}
+                  </h4>
+                  <p className="text-sm text-stone-600 mb-5 max-w-sm mx-auto">
+                    {deliveryType === 'delivery' 
+                      ? 'O motoboy levará a maquininha até você. Aceitamos Débito, Crédito e Aproximação.' 
+                      : 'Você poderá pagar na maquininha diretamente no balcão da sorveteria.'}
+                  </p>
                   <Button 
                     loading={loading} 
-                    onClick={() => finishOrder('Cartão (Maquininha na Entrega)')} 
-                    className="w-full py-5 text-xl shadow-xl shadow-primary/20 bg-primary text-white rounded-2xl"
+                    onClick={() => finishOrder(deliveryType === 'delivery' ? 'Cartão (Maquininha no Motoboy)' : 'Cartão (Maquininha na Loja)')} 
+                    className="w-full py-5 text-lg shadow-xl shadow-primary/20 bg-primary text-white rounded-2xl"
                   >
                     Confirmar Pedido (Pagar no Cartão)
                   </Button>
                 </motion.div>
               )}
 
+              {/* Box Dinheiro com Troco */}
               {paymentMethod === 'delivery_payment' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-amarena-green/20 mb-6 text-center">
-                  <p className="text-sm text-stone-600 mb-4">Você pagará em dinheiro no momento da entrega ou retirada.</p>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border-2 border-amarena-green/20 mb-6 shadow-sm text-left">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-amarena-green/10 rounded-2xl flex items-center justify-center text-amarena-green">
+                      <ShoppingBag size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-stone-800">Pagamento em Dinheiro</h4>
+                      <p className="text-xs text-stone-400">
+                        {deliveryType === 'delivery' ? 'Pagamento ao motoboy na entrega' : 'Pagamento no balcão da sorveteria'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {deliveryType === 'delivery' && (
+                    <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100 mb-5 space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer select-none">
+                        <input 
+                          type="checkbox"
+                          checked={needsChange}
+                          onChange={e => {
+                            setNeedsChange(e.target.checked);
+                            if (!e.target.checked) setCashChange('');
+                          }}
+                          className="w-5 h-5 rounded-lg text-amarena-green focus:ring-amarena-green"
+                        />
+                        <span className="font-bold text-sm text-stone-700">Precisa de troco para quanto?</span>
+                      </label>
+
+                      {needsChange && (
+                        <div className="pt-2 animate-in fade-in">
+                          <label className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-1">
+                            Troco para quanto? (Ex: 50, 100)
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-stone-400 text-sm">R$</span>
+                            <input 
+                              type="number"
+                              step="0.50"
+                              placeholder={`Ex: ${Math.ceil(total / 10) * 10 || 50}`}
+                              value={cashChange}
+                              onChange={e => setCashChange(e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-stone-200 rounded-xl font-bold text-stone-800 outline-none focus:border-amarena-green text-base"
+                            />
+                          </div>
+                          {parseFloat(cashChange) > total && (
+                            <p className="text-xs font-bold text-emerald-600 mt-1.5">
+                              Seu troco será: R$ {(parseFloat(cashChange) - total).toFixed(2)}
+                            </p>
+                          )}
+                          {parseFloat(cashChange) > 0 && parseFloat(cashChange) < total && (
+                            <p className="text-xs font-bold text-red-500 mt-1.5">
+                              O valor informado deve ser maior que o total (R$ {total.toFixed(2)}).
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Button 
                     variant="secondary" 
                     loading={loading} 
-                    className="w-full py-5 text-xl shadow-xl shadow-amarena-green/20 bg-amarena-green text-white rounded-2xl" 
-                    onClick={() => finishOrder('Dinheiro na Entrega')}
+                    className="w-full py-5 text-lg shadow-xl shadow-amarena-green/20 bg-amarena-green text-white rounded-2xl" 
+                    onClick={() => {
+                      const changeVal = needsChange && parseFloat(cashChange) > total ? parseFloat(cashChange) : 0;
+                      const methodDesc = deliveryType === 'delivery'
+                        ? (changeVal > 0 ? `Dinheiro (Troco p/ R$ ${changeVal.toFixed(2)})` : 'Dinheiro (Sem troco)')
+                        : 'Dinheiro (Na Retirada)';
+                      finishOrder(methodDesc, changeVal);
+                    }}
                   >
                     Confirmar Pedido (Pagar em Dinheiro)
                   </Button>
