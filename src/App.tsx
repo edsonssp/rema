@@ -1359,6 +1359,7 @@ export default function App() {
     { id: '300', label: '300ml', price: settings?.milkshake?.['300'] || 20.90 },
     { id: '400', label: '400ml', price: settings?.milkshake?.['400'] || 25.90 },
     { id: '500', label: '500ml', price: settings?.milkshake?.['500'] || 28.90 },
+    { id: '700', label: '700ml', price: settings?.milkshake?.['700'] || 34.90 },
   ];
   const disabledMilkshakeSizes = settings?.milkshakeDisabledSizes || [];
   const milkshakeSizes = allMilkshakeSizes.filter(s => !disabledMilkshakeSizes.includes(s.id));
@@ -3187,11 +3188,12 @@ export default function App() {
                             Gerencie os preços e a disponibilidade dos tamanhos de Milkshake.
                           </p>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             {[
                               { id: '300', label: '300ml', defaultPrice: 20.90 },
                               { id: '400', label: '400ml', defaultPrice: 25.90 },
                               { id: '500', label: '500ml', defaultPrice: 28.90 },
+                              { id: '700', label: '700ml', defaultPrice: 34.90 },
                             ].map(item => {
                               const isPaused = (settings?.milkshakeDisabledSizes || []).includes(item.id);
                               return (
