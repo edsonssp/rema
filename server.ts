@@ -168,7 +168,8 @@ async function startServer() {
   app.post("/api/admin/login", async (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && password === ADMIN_PASS) {
-      const token = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
+      // Token permanente de longa duração (100 anos) para nunca expirar nem deslogar
+      const token = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "36500d" });
       return res.json({ token, username });
     }
     res.status(401).json({ error: "Credenciais inválidas" });

@@ -1181,6 +1181,11 @@ export default function App() {
     try {
       setLoading(true);
       const token = localStorage.getItem('amarena_admin_token');
+      if (!token) {
+        alert("Sua sessão de administrador expirou. Por favor, faça login novamente.");
+        setIsAdminLoggedIn(false);
+        return;
+      }
       
       let response;
       if (editingProduct?.id) {
@@ -1196,14 +1201,21 @@ export default function App() {
       if (response.status === 200 || response.status === 201) {
         setEditingProduct(null);
         fetchProducts();
-        alert("Produto salvo com sucesso!");
+        alert("Produto / Adicional salvo com sucesso!");
       } else {
         throw new Error(`Erro do servidor: ${response.status} - ${JSON.stringify(response.data)}`);
       }
     } catch (err: unknown) {
       console.error("DEBUG ERR:", err);
-      const errorMessage = (err instanceof Error) ? err.message : "Erro desconhecido ao salvar produto.";
-      alert(`Erro detalhado: ${errorMessage}`);
+      const is401 = (axios.isAxiosError(err) && err.response?.status === 401);
+      if (is401) {
+        alert("Sessão de Administrador expirada (401). Faça logout e login novamente para continuar editando.");
+        localStorage.removeItem('amarena_admin_token');
+        setIsAdminLoggedIn(false);
+      } else {
+        const errorMessage = (err instanceof Error) ? err.message : "Erro desconhecido ao salvar produto.";
+        alert(`Erro detalhado: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -1322,14 +1334,26 @@ export default function App() {
     verdes: settings?.acaiVerdes && settings.acaiVerdes.length > 0 ? settings.acaiVerdes : defaultVerdes
   };
 
-  const paidAddons = [
-    { name: 'Creme de ninho', price: 4.50 },
-    { name: 'Creme de Pistache', price: 5.00 },
-    { name: 'Kinder Bueno', price: 5.50 },
-    { name: 'Creme de Valsa', price: 5.50 },
-    { name: 'Kit Kat', price: 5.00 },
-    { name: 'Nutella', price: 5.00 }
-  ];
+  // Dynamic paid addons for Açaí: uses database addons if available
+  const dbAddons = products.filter(p => p.category === 'addon' && (p.active ?? true));
+  const paidAddons: { name: string; price: number }[] = (() => {
+    if (dbAddons.length > 0) {
+      // If admin selected specific addons in settings.acaiAddons, use those. Otherwise, all active addons.
+      const enabledNames = settings?.acaiAddons;
+      if (enabledNames && enabledNames.length > 0) {
+        return dbAddons.filter(a => enabledNames.includes(a.name)).map(a => ({ name: a.name, price: a.price }));
+      }
+      return dbAddons.map(a => ({ name: a.name, price: a.price }));
+    }
+    return [
+      { name: 'Creme de Ninho', price: 4.50 },
+      { name: 'Creme de Pistache', price: 5.00 },
+      { name: 'Kinder Bueno', price: 5.50 },
+      { name: 'Creme de Valsa', price: 5.50 },
+      { name: 'Kit Kat', price: 5.00 },
+      { name: 'Nutella', price: 5.00 }
+    ];
+  })();
 
   const allMilkshakeSizes = [
     { id: '300', label: '300ml', price: settings?.milkshake?.['300'] || 20.90 },
@@ -1341,12 +1365,20 @@ export default function App() {
 
   /* REMOVED: sundaeSizes */
 
-  const milkshakeOptions = [
-    { name: 'Chantilly', price: 2.00 },
-    { name: 'Creme de Ninho', price: 4.00 },
-    { name: 'Nutella', price: 5.00 },
-    { name: 'Ovomaltine', price: 3.50 }
-  ];
+  const milkshakeOptions: { name: string; price: number }[] = (() => {
+    if (dbAddons.length > 0) {
+      const enabledNames = settings?.milkshakeAddons;
+      if (enabledNames && enabledNames.length > 0) {
+        return dbAddons.filter(a => enabledNames.includes(a.name)).map(a => ({ name: a.name, price: a.price }));
+      }
+    }
+    return [
+      { name: 'Chantilly', price: 2.00 },
+      { name: 'Creme de Ninho', price: 4.00 },
+      { name: 'Nutella', price: 5.00 },
+      { name: 'Ovomaltine', price: 3.50 }
+    ];
+  })();
 
   const allTubSizes = [
     { id: '1L', label: '1 Litro', price: settings?.potePersonalizado?.['1L'] || 40.0 },
@@ -2964,7 +2996,7 @@ export default function App() {
                                           <Edit size={16} />
                                        </button>
                                        <button 
-                                         onClick={() => { /* Implement delete function */ }}
+                                         onClick={() => handleDeleteProduct(p.id)}
                                          className="p-2 bg-stone-100 text-stone-500 hover:text-red-500 rounded-lg transition-all"
                                        >
                                           <Trash2 size={16} />
