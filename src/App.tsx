@@ -3239,7 +3239,7 @@ export default function App() {
                                         : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
                                     }`}
                                   >
-                                    {isPaused ? '⏸️ PAUSADO' : '🟢 ATIVO NO CARDÁPIO'}
+                                    {isPaused ? '⏸️ PAUSADO (Clique p/ Ativar)' : '🟢 ATIVO NO CARDÁPIO'}
                                   </button>
                                 </div>
                               );
@@ -3305,7 +3305,7 @@ export default function App() {
                                         : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
                                     }`}
                                   >
-                                    {isPaused ? '⏸️ PAUSADO' : '🟢 ATIVO NO CARDÁPIO'}
+                                    {isPaused ? '⏸️ PAUSADO (Clique p/ Ativar)' : '🟢 ATIVO NO CARDÁPIO'}
                                   </button>
                                 </div>
                               );
